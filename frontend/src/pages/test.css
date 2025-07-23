@@ -1,0 +1,35 @@
+header {
+  background-color: powderblue;
+  padding: 30px;
+  text-align: center;
+  font-size: 35px;
+}
+
+.button{
+    background-color: blueviolet;
+    padding: 30px;
+    display: inline-block;
+}
+
+.highlight-label {
+    background-color: purple;
+    color: black;
+    padding: 4px;
+    font-weight: bold;
+    display: inline-block;
+  }
+
+nav {
+  background-color: azure;
+  padding: 30px;
+  display: inline-block;
+}
+
+html {
+  background-color: lightgray;
+}
+
+#about {
+  display: block; /* Show this one by default */
+}
+
