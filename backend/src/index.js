@@ -7,6 +7,7 @@ import puppeteer from "puppeteer"
 import indigenousVectors from './indigenous-vectors.json' assert { type: "json" };
 
 const PORT = process.env.PORT || 3002;
+const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
 
 const app = express();
 app.use(json());
@@ -127,14 +128,13 @@ QUERY PARARMS:
     
 vectorId: vectorId of the vector to retrieve,
 start: first period, inclusive, measured in number of periods away from present>,
-latestN: latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+latest: latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
 */
 app.get("/get-vector", async (req, res) => {
-    let latest = 0;
-    if (req.query.latest) {
-        latest = parseInt(req.query.latest);
-    }
-    const vector = await getVector(req.query.vectorId, req.query.start, latest);
+    const vectorId = req.query.vectorId;
+    const latest = parseInt(req.query.latest) || 0;
+    const start = parseInt(req.query.start) || 1;
+    const vector = await getVector(req.query.vectorId, start, latest);
     if (vector instanceof Error) {
         console.error("Error fetching or parsing data:", vector);
         return res.status(500).send({ error: "Failed to fetch or parse data" });
@@ -145,34 +145,87 @@ app.get("/get-vector", async (req, res) => {
 /*
 QUERY PARAMS: 
 
-start (int): first period, inclusive, measured in number of periods away from present>,
-latestN (int): latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
-geography (string): desired geography, either any one of the provinces or Canada. defaults to Canada
-gender (boolean): true to compare genders, false to not compare genders. defaults to false
-indigenous-groups (array of strings): array of indigenous groups to include in the chart from first nations, inuit, metis, non indigenous. indigenous does not need to be specified. defaults to empty array
-characteristic (string): string to denote whether to use employment, unemployment, or participation. defaults to employment
-education (boolean): true to include education attainment, false to not include education attainment. defaults to false
-age (array of strings): array of age groups to include in the chart. defaults to ["15+"]
-reserve (boolean): true to include distinguish reserve and non-rserve, false to not distinguish. defaults to false
-disability (boolean): true to include disability, false to not include disability. defaults to false
+start (int): 
+    first period, inclusive, measured in number of periods away from present, defaults to 1
+latest (int):
+    latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+geography (string):
+    desired geography, either any one of the provinces or Canada. defaults to Canada
+identity (array of strings):
+    array of indigenous groups to include in the chart from first nations, inuit, metis, non indigenous.
+    defaults to ["indigenous", "non-indigenous"]
+gender (boolean):
+    true to compare genders, false to not compare genders. defaults to false
+characteristic (string):
+    string to denote whether to use employment, unemployment, or participation. defaults to employment
+education (boolean):
+    true to include education attainment, false to not include education attainment. defaults to false
+age (array of strings):
+    array of age groups to include in the chart. defaults to ["15+"]
 earnings
 
+RETURN
+
+array(<trend object>)
+
+<trend object> = {
+    graph-name: <name of group>
+    time-series: <vectorToTimeSeries output>
+}
 
 */
-app.get("/get-indigenous-chart", (req, res) => {
-    // HEIRARCHY
-    // 1. geography
-    // 2. indgenous groups/non-indigenous
-    // 3. characteristics
-    // 4. gender
-    // 5. education
-    // 6. age
+app.get("/get-indigenous-graph", (req, res) => {
+    /*
+    HEIRARCHY OF indigenousVectors
+        1. geography
+        2. indgenous groups/non-indigenous
+        3. characteristics
+        4. gender
+        5. education
+        6. age
+    */
     const vectors = indigenousVectors;
+    const geography = req.query.geography || "can";
+    const identities = req.query.identity || ["indigenous", "non-indigenous"];
+    const characteristic = req.query.characteristic || "employment-rate";
+    const gender = (req.query.gender == "true") || false;
+    const ages = req.query.identity || ["15+"];
 
+    let graphArray = [];
+
+    identities.forEach(async (index, item) => {
+        let graphObject = await fetch(`${BACKEND_URL}/get-trend?vectorId=${req.query.vectorId}&start=${req.query.start}&latest=${req.query.latest}`);
+        if (graphObject) graphArray.push(graph);
+    })
 });
 
-app.get("/get-generic-chart", (req, res) => {
+/*
+QUERY PARAMS
 
+vectorId:
+    id of group. reuired field
+start:
+    first period, inclusive, measured in number of periods away from present, defaults to 1
+finish:
+    latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+*/
+app.get("/get-trend", async (req, res) => {
+    if (!req.query.vectorId) {
+        res.status(500).send({ error: "Missing vectorID" });
+    }
+    const vectorId = req.query.vectorId;
+    const start = req.query.start || "1";
+    const latest = req.query.latest || "0";
+    if (latest > start) {
+        res.status(500).send({"error": "latest cant be bigger than start"});
+    }
+    const vector = await fetch(`${BACKEND_URL}/get-vector?vectorId=${req.query.vectorId}&start=${req.query.start}&latest=${req.query.latest}`)
+    timeSeries = vectorToTimeSeries(vector);
+    trendObject = {
+        "name": vector.name,
+        "time-series": timeSeries
+    }
+    res.send(trendObject);
 });
 
 
