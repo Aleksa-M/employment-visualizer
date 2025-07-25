@@ -4,6 +4,7 @@ import http from "http"
 import express, { json } from "express"
 import { parse } from "node-html-parser"
 import puppeteer from "puppeteer"
+import indigenousVectors from './indigenous-vectors.json' assert { type: "json" };
 
 const PORT = process.env.PORT || 3002;
 
@@ -47,13 +48,13 @@ const scrapeTable = async (url) => {
 
 // Function to retrieve vector from statscan
 // returns vector as an array of json objects
-const getVector = async (vectorId, latestN) => {
+const getVector = async (vectorId, start, latest) => {
     const options = {
         method: 'POST',
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify([{ vectorId: vectorId, latestN: latestN}])
+        body: JSON.stringify([{ vectorId: vectorId, latestN: start}])
     };
     try {
         const response = await fetch('https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorsAndLatestNPeriods', options).then(
@@ -73,7 +74,9 @@ const getVector = async (vectorId, latestN) => {
                 return err;
             }
         );
-        return response[0].object;  // response is an array of responses, each being JSON with a status and object, and object is the actual vector
+        let vector = response[0].object; // response is an array of responses, each being JSON with a status and object, and object is the actual vector
+        vector.vectorDataPoint = vector.vectorDataPoint.slice(0, start - latest);
+        return response[0].object;  
     } catch (err) {
         return err;
     }
@@ -87,7 +90,7 @@ const vectorToTimeSeries = (vector) => {
     console.log("data: ", data);
     let timeSeries = {};
     data.forEach((item) => {
-        timeSeries[item.refPer] = item.value;
+        timeSeries[item.refPer.substring(0, 4)] = item.value;
     });
     return timeSeries;
 }
@@ -110,10 +113,6 @@ app.get("/", (req,res)=>{
     res.send("<h1>gurt: yo</h1>");
 });
 
-//----------------------------------------------------------------------------------
-// POST
-//----------------------------------------------------------------------------------
-
 app.get("/scrape-table", async (req, res) => {
     const table = await scrapeTable('https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410035901');
     if (table instanceof Error) {
@@ -123,17 +122,65 @@ app.get("/scrape-table", async (req, res) => {
     res.json(table);
 });
 
-app.get("/parse-table", async (req, res) => {
-    const vector = await getVector(96386819, 5);
+/*
+QUERY PARARMS:
+    
+vectorId: vectorId of the vector to retrieve,
+start: first period, inclusive, measured in number of periods away from present>,
+latestN: latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+*/
+app.get("/get-vector", async (req, res) => {
+    let latest = 0;
+    if (req.query.latest) {
+        latest = parseInt(req.query.latest);
+    }
+    const vector = await getVector(req.query.vectorId, req.query.start, latest);
     if (vector instanceof Error) {
         console.error("Error fetching or parsing data:", vector);
         return res.status(500).send({ error: "Failed to fetch or parse data" });
     }
-    const timeSeries = vectorToTimeSeries(vector);
-    
-    //res.setHeader('Content-Type', 'text/csv');
-    res.send(timeSeries);
+    res.send(vector); 
 });
+
+/*
+QUERY PARAMS: 
+
+start (int): first period, inclusive, measured in number of periods away from present>,
+latestN (int): latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+geography (string): desired geography, either any one of the provinces or Canada. defaults to Canada
+gender (boolean): true to compare genders, false to not compare genders. defaults to false
+indigenous-groups (array of strings): array of indigenous groups to include in the chart from first nations, inuit, metis, non indigenous. indigenous does not need to be specified. defaults to empty array
+characteristic (string): string to denote whether to use employment, unemployment, or participation. defaults to employment
+education (boolean): true to include education attainment, false to not include education attainment. defaults to false
+age (array of strings): array of age groups to include in the chart. defaults to ["15+"]
+reserve (boolean): true to include distinguish reserve and non-rserve, false to not distinguish. defaults to false
+disability (boolean): true to include disability, false to not include disability. defaults to false
+earnings
+
+
+*/
+app.get("/get-indigenous-chart", (req, res) => {
+    // HEIRARCHY
+    // 1. geography
+    // 2. indgenous groups/non-indigenous
+    // 3. characteristics
+    // 4. gender
+    // 5. education
+    // 6. age
+    const vectors = indigenousVectors;
+
+});
+
+app.get("/get-generic-chart", (req, res) => {
+
+});
+
+
+//----------------------------------------------------------------------------------
+// POST
+//----------------------------------------------------------------------------------
+
+
 
 //----------------------------------------------------------------------------------
 // DELETE
