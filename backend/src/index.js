@@ -1,10 +1,13 @@
 
-import cors from "cors"
-import http from "http"
-import express, { json } from "express"
-import { parse } from "node-html-parser"
-import puppeteer from "puppeteer"
-import indigenousVectors from './indigenous-vectors.json' assert { type: "json" };
+const cors = require("cors");
+const http = require("http");
+const express = require("express");
+const { json } = require("express");
+const { parse } = require("node-html-parser");
+const puppeteer = require("puppeteer");
+// where all the vectors are added
+// some vectors that are missing (esp from age when relating to education) can be derived from other vectors
+const indigenousVectors = require('./indigenous-vectors.json');
 
 const PORT = process.env.PORT || 3002;
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
@@ -62,8 +65,6 @@ const getVector = async (vectorId, start, latest) => {
             (res) => {
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
-                } else {
-                    console.log("response ok");
                 }
                 return res;
             }
@@ -86,9 +87,8 @@ const getVector = async (vectorId, start, latest) => {
 // Function to convert vector json to time series json
 // time series is a json where key is time period and value is the value for that period
 const vectorToTimeSeries = (vector) => {
-    console.log("vector: ", vector);
     let data = vector.vectorDataPoint
-    console.log("data: ", data);
+    // console.log("step 2b")
     let timeSeries = {};
     data.forEach((item) => {
         timeSeries[item.refPer.substring(0, 4)] = item.value;
@@ -131,50 +131,60 @@ start: first period, inclusive, measured in number of periods away from present>
 latest: latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
 */
 app.get("/get-vector", async (req, res) => {
+    // console.log("step 1a")
     const vectorId = req.query.vectorId;
     const latest = parseInt(req.query.latest) || 0;
     const start = parseInt(req.query.start) || 1;
+    // console.log("step 1b")
     const vector = await getVector(req.query.vectorId, start, latest);
+    // console.log("step 1c")
     if (vector instanceof Error) {
         console.error("Error fetching or parsing data:", vector);
         return res.status(500).send({ error: "Failed to fetch or parse data" });
     }
+    // console.log("step 1d")
     res.send(vector); 
 });
 
 /*
 QUERY PARAMS: 
 
-start (int): 
-    first period, inclusive, measured in number of periods away from present, defaults to 1
-latest (int):
-    latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
-geography (string):
-    desired geography, either any one of the provinces or Canada. defaults to Canada
-identity (array of strings):
-    array of indigenous groups to include in the chart from first nations, inuit, metis, non indigenous.
-    defaults to ["indigenous", "non-indigenous"]
-gender (boolean):
-    true to compare genders, false to not compare genders. defaults to false
-characteristic (string):
-    string to denote whether to use employment, unemployment, or participation. defaults to employment
-education (boolean):
-    true to include education attainment, false to not include education attainment. defaults to false
-age (array of strings):
-    array of age groups to include in the chart. defaults to ["15+"]
-earnings
+    geography (string):
+        desired geography, either any one of the provinces or Canada. defaults to Canada
+
+    characteristic (string):
+        string to denote whether to use employment, unemployment, or participation. defaults to employment
+
+    start (int): 
+        first period, inclusive, measured in number of periods away from present, defaults to 1
+
+    latest (int):
+        latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+
+    identity (array of strings):
+        array of indigenous groups to include in the chart from first nations, inuit, metis, non indigenous.
+        defaults to ["indigenous", "non-indigenous"]
+
+    gender (array of strings):
+        true to compare genders, false to not compare genders. defaults to false
+
+    education (array of strings):
+        true to include education attainment, false to not include education attainment. defaults to false
+
+    age (array of strings):
+        array of age groups to include in the chart. defaults to ["15+"]
 
 RETURN
 
-array(<trend object>)
+    array(<trend object>)
 
-<trend object> = {
-    graph-name: <name of group>
-    time-series: <vectorToTimeSeries output>
-}
+    <trend object> = {
+        trend-name: <name of trend>
+        time-series: <vectorToTimeSeries output>
+    }
 
 */
-app.get("/get-indigenous-graph", (req, res) => {
+app.get("/get-indigenous-chart", async (req, res) => {
     /*
     HEIRARCHY OF indigenousVectors
         1. geography
@@ -184,19 +194,78 @@ app.get("/get-indigenous-graph", (req, res) => {
         5. education
         6. age
     */
-    const vectors = indigenousVectors;
+
+    // chart has two axes: time and characteristic, so following values only have one string val. 
+    // chart only displays data for one geographic region
     const geography = req.query.geography || "can";
-    const identities = req.query.identity || ["indigenous", "non-indigenous"];
     const characteristic = req.query.characteristic || "employment-rate";
-    const gender = (req.query.gender == "true") || false;
-    const ages = req.query.identity || ["15+"];
 
-    let graphArray = [];
+    // chart consists of any number of trends, so following values can have any number of string values
+    const identities = Array.isArray(req.query.identity)
+        ? req.query.identity
+        : req.query.identity
+            ? [req.query.identity]
+            : ["indigenous", "non-indigenous"];
+    const genders = Array.isArray(req.query.gender)
+        ? req.query.gender
+        : req.query.gender
+            ? [req.query.gender]
+            : ["total-gender"];
+    const educations = Array.isArray(req.query.education)
+        ? req.query.education
+        : req.query.education
+            ? [req.query.education]
+            : ["total-education"];
+    const ages = Array.isArray(req.query.age)
+        ? req.query.age
+        : req.query.age
+            ? [req.query.age]
+            : ["15+"];
 
-    identities.forEach(async (index, item) => {
-        let graphObject = await fetch(`${BACKEND_URL}/get-trend?vectorId=${req.query.vectorId}&start=${req.query.start}&latest=${req.query.latest}`);
-        if (graphObject) graphArray.push(graph);
-    })
+    const start = parseInt(req.query.start) || 1;
+    const latest = parseInt(req.query.latest) || 0;
+    
+    let chartArray = [];
+
+    // Use Promise.all with map at every level to ensure all async fetches are awaited
+    await Promise.all(
+        identities.map(identity =>
+            Promise.all(
+                genders.map(gender =>
+                    Promise.all(
+                        educations.map(education =>
+                            Promise.all(
+                                ages.map(async age => {
+                                    let vectorId = indigenousVectors[geography][identity][characteristic][gender][education][age];
+                                    if (vectorId != "") {
+                                        console.log("i might do a thing")
+                                        const response = await fetch(
+                                            `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
+                                        );
+                                        console.log("wowza")
+                                        if (response.ok) {
+                                            const trend = await response.json();
+                                            chartArray.push(trend);
+                                        }
+                                    }
+                                })
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    );
+
+    console.log("out of the loop :3");
+
+    let chartObject = {
+        "geography": geography,
+        "characteristic": characteristic,
+        "trends": chartArray
+    }
+
+    res.send(chartObject);
 });
 
 /*
@@ -204,6 +273,8 @@ QUERY PARAMS
 
 vectorId:
     id of group. reuired field
+vectorName
+    string name of vector so that time series can be identified
 start:
     first period, inclusive, measured in number of periods away from present, defaults to 1
 finish:
@@ -214,15 +285,20 @@ app.get("/get-trend", async (req, res) => {
         res.status(500).send({ error: "Missing vectorID" });
     }
     const vectorId = req.query.vectorId;
+    let vectorName = req.query.vectorName || "unnamed"
     const start = req.query.start || "1";
     const latest = req.query.latest || "0";
     if (latest > start) {
         res.status(500).send({"error": "latest cant be bigger than start"});
     }
-    const vector = await fetch(`${BACKEND_URL}/get-vector?vectorId=${req.query.vectorId}&start=${req.query.start}&latest=${req.query.latest}`)
+    const response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${req.query.vectorId}&start=${req.query.start}&latest=${req.query.latest}`)
+    const vector = await response.json();
     timeSeries = vectorToTimeSeries(vector);
+    if (vectorName[vectorName.length - 1] == " ") {
+        vectorName = vectorName.substring(0, vectorName.length - 1) + "+";
+    }
     trendObject = {
-        "name": vector.name,
+        "name": vectorName,
         "time-series": timeSeries
     }
     res.send(trendObject);
