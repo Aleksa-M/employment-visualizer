@@ -3,11 +3,29 @@ const cors = require("cors");
 const http = require("http");
 const express = require("express");
 const { json } = require("express");
-const { parse } = require("node-html-parser");
-const puppeteer = require("puppeteer");
-// where all the vectors are added
-// some vectors that are missing (esp from age when relating to education) can be derived from other vectors
+
+/*
+HEIRARCHY OF indigenousVectors
+    1. geography
+    2. indgenous groups/non-indigenous
+    3. characteristics
+    4. gender
+    5. education
+    6. age
+
+vectors from statscan tables are manually entered so that retrival on backend is blind.
+some vectors that are missing (esp from age when relating to education) can be derived from other vectors.
+*/
 const indigenousVectors = require('./indigenous-vectors.json');
+
+/*
+cache to store vectors to minimize statscan WDS API calls.
+cache will include vectors from all chart generation calls, possibly simultaneously.
+/get-vector will first try to find the vector from the cache before fetching it from statscan api
+when a chart generation call is finished, it will delete only its own vectors from the vector cache.
+key is vectorId and cache is unprocessed vector (same format as directly taken from statscan WDS API).
+*/
+let vector_cache_global = {};
 
 const PORT = process.env.PORT || 3002;
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
@@ -20,38 +38,13 @@ app.use(cors({
 }));
 const server = http.createServer();
 
-// Function to scrape statscan databases
-const scrapeTable = async (url) => {
-    // headless browser setup
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto(url);
-    const text = await page.content();
-    const root = parse(text);
-    const list = root.querySelectorAll("table");
-    let tableJSON = {};
-    list.forEach((table, index) => {
-        let tableArray = [];
-        const rows = table.querySelectorAll("tr");
-        rows.forEach((row) => {
-            let rowArray = [];
-            row.querySelectorAll("td, th").forEach((cell) => {
-                rowArray.push(cell.text.trim());
-            });
-            tableArray.push(rowArray);
-        });
-        tableJSON[`Table ${index + 1}:`] = {
-            class: table.getAttribute("class"),
-            id: table.getAttribute("id"),
-            tableArray: tableArray
-        };
-    });
-    return tableJSON;
-
-}
+//----------------------------------------------------------------------------------
+// HELPER FUNCTIONS
+//----------------------------------------------------------------------------------
 
 // Function to retrieve vector from statscan
-// returns vector as an array of json objects
+// input is vectorId (string), start (int), latest (int) as described in /get-vector
+// returns vector object with shaved vectorDataPoint
 const getVector = async (vectorId, start, latest) => {
     const options = {
         method: 'POST',
@@ -85,50 +78,152 @@ const getVector = async (vectorId, start, latest) => {
 }
 
 // Function to convert vector json to time series json
-// time series is a json where key is time period and value is the value for that period
+// input is a vector json as retrieved from statscan, with vectorDataPoint already shaved
+// returns a json where keys are time period and respective values are the value for that period
 const vectorToTimeSeries = (vector) => {
     let data = vector.vectorDataPoint
     // console.log("step 2b")
     let timeSeries = {};
     data.forEach((item) => {
-        timeSeries[item.refPer.substring(0, 4)] = item.value;
+        timeSeries[item.refPer.substring(0, 4)] = parseInt(item.value);
     });
     return timeSeries;
+}
+
+// determines if age is calculateable given all other vector parameters are fixed
+// input is age (string) as either "15+", "15-24", "25+", "25-54", "55+" and other neccessary identifiers specified to specify place in indigenousVectors
+// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
+const completeMissingAge = (geography, identity, characteristic, gender, education, age) => {
+    let completionObject = {
+        calculable: false,
+        calculation_queue
+    };
+
+    let age_15p = indigenousVectors[geography][identity][characteristic][gender][education]["15+"];
+    let age_15_24 = indigenousVectors[geography][identity][characteristic][gender][education]["15-24"];
+    let age_25p = indigenousVectors[geography][identity][characteristic][gender][education]["25+"];
+    let age_25_54 = indigenousVectors[geography][identity][characteristic][gender][education]["25-54"];
+    let age_55p = indigenousVectors[geography][identity][characteristic][gender][education]["55+"];
+
+
+
+    switch (age) {
+        case "15+":
+        default:
+            if (age_15_24 != "" && age_25p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15_24);
+                completionObject.calculation_queue.push(age_25p);
+                completionObject.calculation_queue.push("addition");
+            } else if (age_15_24 != "" && age_25_54 != "" && age_55p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15_24);
+                completionObject.calculation_queue.push(age_25_54);
+                completionObject.calculation_queue.pushh("addition");
+                completionObject.calculation_queue.push(age_55p);
+                completionObject.calculation_queue.push("addition");
+            }
+            break;
+        case "15-24":
+            if (age_15p != "" && age_25p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15p);
+                completionObject.calculation_queue.push(age_25p);
+                completionObject.calculation_queue.push("subtraction");
+            } else if (age_15p != "" && age_25_54 != "" && age_55p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15p);
+                completionObject.calculation_queue.push(age_25_54);
+                completionObject.calculation_queue.pushh("subtraction");
+                completionObject.calculation_queue.push(age_55p);
+                completionObject.calculation_queue.push("subtraction");
+            }
+            break;
+        case "25+":
+            if (age_15p != "" && age_15_24 != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15p);
+                completionObject.calculation_queue.push(age_15_24);
+                completionObject.calculation_queue.push("subtraction");
+            } else if (age_25_54 != "" && age_55p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_25_54);
+                completionObject.calculation_queue.push(age_55p);
+                completionObject.calculation_queue.pushh("addition");
+            }
+            break;
+        case "25-54":
+            if (age_15p != "" && age_15_24 != "" && age_55p) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15p);
+                completionObject.calculation_queue.push(age_15_24);
+                completionObject.calculation_queue.push("subtraction");
+                completionObject.calculation_queue.push(age_55p);
+                completionObject.calculation_queue.push("subtraction");
+            } else if (age_25p != "" && age_55p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_25p);
+                completionObject.calculation_queue.push(age_55p);
+                completionObject.calculation_queue.pushh("subtraction");
+            }
+            break;
+        case "55+":
+            if (age_15p != "" && age_15_24 != "" && age_25_54) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15p);
+                completionObject.calculation_queue.push(age_15_24);
+                completionObject.calculation_queue.push("subtraction");
+                completionObject.calculation_queue.push(age_25_54);
+                completionObject.calculation_queue.push("subtraction");
+            } else if (age_25p != "" && age_25_54 != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_25p);
+                completionObject.calculation_queue.push(age_25_54);
+                completionObject.calculation_queue.pushh("subtraction");
+            }
+            break;
+    }
+
+    return completionObject;
 }
 
 //----------------------------------------------------------------------------------
 // SERVER SETUP
 //----------------------------------------------------------------------------------
 
+
+
 // http server
 app.listen(3002, () => {
     console.log("Backend server is running on tcp 3002");
 });
 
+
+
 //----------------------------------------------------------------------------------
 // GET
 //----------------------------------------------------------------------------------
+
+
 
 app.get("/", (req,res)=>{
     console.log("nae nae");
     res.send("<h1>gurt: yo</h1>");
 });
 
-app.get("/scrape-table", async (req, res) => {
-    const table = await scrapeTable('https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410035901');
-    if (table instanceof Error) {
-        console.error("Error fetching or parsing data:", table);
-        return res.status(500).send({ error: "Failed to fetch or parse data" });
-    }
-    res.json(table);
-});
+
 
 /*
 QUERY PARARMS:
     
-vectorId: vectorId of the vector to retrieve,
-start: first period, inclusive, measured in number of periods away from present>,
-latest: latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+    vectorId:
+        vectorId of the vector to retrieve
+        
+    start:
+        first period, inclusive, measured in number of periods away from present
+
+    latest:
+        latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
 */
 app.get("/get-vector", async (req, res) => {
     // console.log("step 1a")
@@ -145,6 +240,8 @@ app.get("/get-vector", async (req, res) => {
     // console.log("step 1d")
     res.send(vector); 
 });
+
+
 
 /*
 QUERY PARAMS: 
@@ -176,25 +273,14 @@ QUERY PARAMS:
 
 RETURN
 
-    array(<trend object>)
-
-    <trend object> = {
-        trend-name: <name of trend>
-        time-series: <vectorToTimeSeries output>
+    {
+        geography: <geogrraphical region requested by frontend>
+        characteristic: <labour characteristic requested by frontend>
+        trends: <array({name: <name of trend>, time_series: <vectorToTimeSeries output>})
     }
 
 */
 app.get("/get-indigenous-chart", async (req, res) => {
-    /*
-    HEIRARCHY OF indigenousVectors
-        1. geography
-        2. indgenous groups/non-indigenous
-        3. characteristics
-        4. gender
-        5. education
-        6. age
-    */
-
     // chart has two axes: time and characteristic, so following values only have one string val. 
     // chart only displays data for one geographic region
     const geography = req.query.geography || "can";
@@ -205,7 +291,7 @@ app.get("/get-indigenous-chart", async (req, res) => {
         ? req.query.identity
         : req.query.identity
             ? [req.query.identity]
-            : ["indigenous", "non-indigenous"];
+            : ["indigenous", "non-indigenous"]; 
     const genders = Array.isArray(req.query.gender)
         ? req.query.gender
         : req.query.gender
@@ -229,33 +315,43 @@ app.get("/get-indigenous-chart", async (req, res) => {
 
     // Use Promise.all with map at every level to ensure all async fetches are awaited
     await Promise.all(
-        identities.map(identity =>
-            Promise.all(
-                genders.map(gender =>
-                    Promise.all(
-                        educations.map(education =>
-                            Promise.all(
-                                ages.map(async age => {
-                                    let vectorId = indigenousVectors[geography][identity][characteristic][gender][education][age];
-                                    if (vectorId != "") {
-                                        console.log("i might do a thing")
-                                        const response = await fetch(
-                                            `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
-                                        );
-                                        console.log("wowza")
-                                        if (response.ok) {
-                                            const trend = await response.json();
-                                            chartArray.push(trend);
-                                        }
-                                    }
-                                })
-                            )
-                        )
-                    )
-                )
-            )
-        )
-    );
+    identities.map(identity =>
+    Promise.all(
+    genders.map(gender =>
+    Promise.all(
+    educations.map(education =>
+    Promise.all(
+    ages.map(async age => {
+        let vectorId = indigenousVectors[geography][identity][characteristic][gender][education][age];
+        let response = {"ok": false};
+
+        if (vectorId != "") {
+            console.log("i might do a thing")
+            let response = await fetch(
+                `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
+            );
+        } else {
+            console.log("shits missing lol")
+
+            let completionObject = completeMissingAge(geography, identity, characteristic, gender, education, age);
+
+            if (completionObject.calculable) {
+                let calculation_queue = completionObject.calculation_queue
+                let response = await fetch(
+                    `${BACKEND_URL}/get-missing-trend?vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
+                        method: 'POST',
+                        body: JSON.stringify({ calculation_queue })
+                    }
+                );
+            }
+        }
+
+        console.log("wowza")
+        if (response.ok) {
+            const trend = await response.json();
+            chartArray.push(trend);
+        }
+    }))))))));
 
     console.log("out of the loop :3");
 
@@ -268,17 +364,30 @@ app.get("/get-indigenous-chart", async (req, res) => {
     res.send(chartObject);
 });
 
+
+
 /*
 QUERY PARAMS
 
-vectorId:
-    id of group. reuired field
-vectorName
-    string name of vector so that time series can be identified
-start:
-    first period, inclusive, measured in number of periods away from present, defaults to 1
-finish:
-    latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+    vectorId (string):
+        id of group. reuired field
+
+    vectorName (string):
+        string name of vector so that time series can be identified
+
+    start (int):
+        first period, inclusive, measured in number of periods away from present, defaults to 1
+
+    finish (int):
+        latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+
+RETURN
+
+    {
+        name: <string for name>
+        time_series: <json(<year>: <value>)>
+    }
+
 */
 app.get("/get-trend", async (req, res) => {
     if (!req.query.vectorId) {
@@ -291,23 +400,110 @@ app.get("/get-trend", async (req, res) => {
     if (latest > start) {
         res.status(500).send({"error": "latest cant be bigger than start"});
     }
-    const response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${req.query.vectorId}&start=${req.query.start}&latest=${req.query.latest}`)
+
+    const response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${vectorId}&start=${start}&latest=${latest}`);
     const vector = await response.json();
+
     timeSeries = vectorToTimeSeries(vector);
+
     if (vectorName[vectorName.length - 1] == " ") {
         vectorName = vectorName.substring(0, vectorName.length - 1) + "+";
     }
     trendObject = {
         "name": vectorName,
-        "time-series": timeSeries
-    }
+        "time_series": timeSeries
+    };
+
     res.send(trendObject);
 });
+
 
 
 //----------------------------------------------------------------------------------
 // POST
 //----------------------------------------------------------------------------------
+
+
+
+/*
+QUERY PARAMS
+
+    opperation (string):
+        one of "addition", "subtraction", "multiplication", or "divison", applied on the values of the time series
+        applied as vector1 [opp] vector2 (not neccessarily commutative) 
+
+    vectorName (string), start (int), finish (int):
+        same as /get-trend
+
+QUERY BODY
+
+    calculationQueue (array):
+        array of vectorIds and operations to calculate the time series, in reverse polish notation
+
+RETURN
+
+    same as /get-trend
+
+*/
+app.get("/get-synthesis-trend", async (req, res) => {
+    let vectorName = req.query.vectorName || "unnamed";
+    const start = req.query.start || "1";
+    const latest = req.query.latest || "0";
+    let calculationQueue = req.body.calculation_queue;
+
+    let calculationStack = [];
+
+    // reverse polish notation calculation
+    while (calculationQueue.length != 0) {
+        let curr = calculationQueue[0];
+        switch (curr) {
+            case "addition":
+                for (let key in calculationStack[1]) {
+                    calculationStack[1][key] += calculationStack[0][key];
+                }
+                calculationStack = calculationStack.shift();
+                break;
+            case "subtraction":
+                for (let key in calculationStack[1]) {
+                    calculationStack[1][key] -= calculationStack[0][key];
+                }
+                calculationStack = calculationStack.shift();
+                break;
+            case "multiplication":
+                for (let key in calculationStack[1]) {
+                    calculationStack[1][key] *= calculationStack[0][key];
+                }
+                calculationStack = calculationStack.shift();
+                break;
+            case "divsion":
+                for (let key in calculationStack[0]) {
+                    calculationStack[1][key] /= calculationStack[0][key];
+                }
+                calculationStack = calculationStack.shift();
+                break;
+            // invalid token will be handled by /get-vector
+            default:
+                let response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${curr}&start=${start}&latest=${latest}`);
+                let vector = await response.json();
+                let timeSeries = vectorToTimeSeries(vector);
+                calculationStack.unshift(timeSeries);
+                break;
+        }
+        calculationQueue = calculationQueue.shift();
+    }
+
+    let timeSeries = calculationStack[0];
+
+    if (vectorName[vectorName.length - 1] == " ") {
+        vectorName = vectorName.substring(0, vectorName.length - 1) + "+";
+    }
+    trendObject = {
+        "name": vectorName,
+        "time_series": timeSeries
+    };
+
+    res.send(trendObject);
+});
 
 
 
