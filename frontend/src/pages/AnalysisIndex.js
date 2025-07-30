@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom"
-import "./test.css"
 export function AnalysisIndex() {
 
     return (
