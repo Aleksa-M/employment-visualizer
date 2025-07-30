@@ -82,21 +82,21 @@ const getVector = async (vectorId, start, latest) => {
 // returns a json where keys are time period and respective values are the value for that period
 const vectorToTimeSeries = (vector) => {
     let data = vector.vectorDataPoint
-    // console.log("step 2b")
     let timeSeries = {};
     data.forEach((item) => {
-        timeSeries[item.refPer.substring(0, 4)] = parseInt(item.value);
+        timeSeries[item.refPer.substring(0, 4)] = parseFloat(item.value);
     });
     return timeSeries;
 }
 
 // determines if age is calculateable given all other vector parameters are fixed
-// input is age (string) as either "15+", "15-24", "25+", "25-54", "55+" and other neccessary identifiers specified to specify place in indigenousVectors
+// bottom level of completion function hieararchy
+// input is age (string) and other neccessary identifiers specified to specify place in indigenousVectors
 // returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
 const completeMissingAge = (geography, identity, characteristic, gender, education, age) => {
     let completionObject = {
         calculable: false,
-        calculation_queue
+        calculation_queue: []
     };
 
     let age_15p = indigenousVectors[geography][identity][characteristic][gender][education]["15+"];
@@ -105,12 +105,13 @@ const completeMissingAge = (geography, identity, characteristic, gender, educati
     let age_25_54 = indigenousVectors[geography][identity][characteristic][gender][education]["25-54"];
     let age_55p = indigenousVectors[geography][identity][characteristic][gender][education]["55+"];
 
-
-
     switch (age) {
         case "15+":
         default:
-            if (age_15_24 != "" && age_25p != "") {
+            if (age_15p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15p);
+            } else if (age_15_24 != "" && age_25p != "") {
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_15_24);
                 completionObject.calculation_queue.push(age_25p);
@@ -119,13 +120,16 @@ const completeMissingAge = (geography, identity, characteristic, gender, educati
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_15_24);
                 completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.pushh("addition");
+                completionObject.calculation_queue.push("addition");
                 completionObject.calculation_queue.push(age_55p);
                 completionObject.calculation_queue.push("addition");
             }
             break;
         case "15-24":
-            if (age_15p != "" && age_25p != "") {
+            if (age_15_24 != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_15_24);
+            } else if (age_15p != "" && age_25p != "") {
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_15p);
                 completionObject.calculation_queue.push(age_25p);
@@ -134,13 +138,16 @@ const completeMissingAge = (geography, identity, characteristic, gender, educati
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_15p);
                 completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.pushh("subtraction");
+                completionObject.calculation_queue.push("subtraction");
                 completionObject.calculation_queue.push(age_55p);
                 completionObject.calculation_queue.push("subtraction");
             }
             break;
         case "25+":
-            if (age_15p != "" && age_15_24 != "") {
+            if (age_25p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_25p);
+            } else if (age_15p != "" && age_15_24 != "") {
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_15p);
                 completionObject.calculation_queue.push(age_15_24);
@@ -149,11 +156,14 @@ const completeMissingAge = (geography, identity, characteristic, gender, educati
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_25_54);
                 completionObject.calculation_queue.push(age_55p);
-                completionObject.calculation_queue.pushh("addition");
+                completionObject.calculation_queue.push("addition");
             }
             break;
         case "25-54":
-            if (age_15p != "" && age_15_24 != "" && age_55p) {
+            if (age_25_54 != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_25_54);
+            } else if (age_15p != "" && age_15_24 != "" && age_55p) {
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_15p);
                 completionObject.calculation_queue.push(age_15_24);
@@ -164,11 +174,14 @@ const completeMissingAge = (geography, identity, characteristic, gender, educati
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_25p);
                 completionObject.calculation_queue.push(age_55p);
-                completionObject.calculation_queue.pushh("subtraction");
+                completionObject.calculation_queue.push("subtraction");
             }
             break;
         case "55+":
-            if (age_15p != "" && age_15_24 != "" && age_25_54) {
+            if (age_55p != "") {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(age_55p);
+            } else if (age_15p != "" && age_15_24 != "" && age_25_54) {
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_15p);
                 completionObject.calculation_queue.push(age_15_24);
@@ -179,7 +192,7 @@ const completeMissingAge = (geography, identity, characteristic, gender, educati
                 completionObject.calculable = true;
                 completionObject.calculation_queue.push(age_25p);
                 completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.pushh("subtraction");
+                completionObject.calculation_queue.push("subtraction");
             }
             break;
     }
@@ -187,10 +200,145 @@ const completeMissingAge = (geography, identity, characteristic, gender, educati
     return completionObject;
 }
 
+
+
+// determines if education is calculateable given all other vector parameters in indigenousVectors hierarchy fixed
+// above ages in the completion function hierarchy
+// input is education (string) and other neccessary identifiers specified to specify place in indigenousVectors
+// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
+const completeMissingEducation = (geography, identity, characteristic, gender, education, age) => {
+    let completionObject = {
+        calculable: false,
+        calculation_queue: []
+    };
+
+    let totalEduction_CO = completeMissingAge(geography, identity, characteristic, gender, "total-education", age);
+    let underHighSchool_CO = completeMissingAge(geography, identity, characteristic, gender, "less-than-high-school", age);
+    let somePostSec_CO = completeMissingAge(geography, identity, characteristic, gender, "high-school-or-some-postsecondary", age);
+    let donePostSec_CO = completeMissingAge(geography, identity, characteristic, gender, "completed-postsecondary", age);
+
+
+    switch (education) {
+        case "total-education":
+        default:
+            if (totalEduction_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalEduction_CO.calculation_queue);
+            } else if (underHighSchool_CO.calculable && somePostSec_CO.calculable && donePostSec_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
+                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
+                completionObject.calculation_queue.push("addition");
+                completionObject.calculation_queue.push(...donePostSec_CO.calculation_queue);
+                completionObject.calculation_queue.push("addition");
+            }
+            break;
+        case "less-than-high-school":
+            if (underHighSchool_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
+            } else if (totalEduction_CO.calculable && somePostSec_CO.calculable && donePostSec_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalEduction_CO.calculation_queue);
+                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+                completionObject.calculation_queue.push(...donePostSec_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+            }
+            break;
+        case "high-school-or-some-postsecondary":
+            if (somePostSec_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
+            } else if (totalEduction_CO.calculable && underHighSchool_CO.calculable && donePostSec_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalEduction_CO.calculation_queue);
+                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+                completionObject.calculation_queue.push(...donePostSec_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+            }
+            break;
+        case "completed-postsecondary":
+            if (donePostSec_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalEduction_CO.calculation_queue);
+            } else if (totalEduction_CO.calculable && underHighSchool_CO.calculable && somePostSec_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalEduction_CO.calculation_queue);
+                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+            }
+            break;
+    }
+
+    return completionObject;
+}
+
+
+
+// determines if gender is calculateable given all other vector parameters in indigenousVectors hierarchy fixed
+// top of the completion function hierarchyh above education
+// input is gender (string) as either "15+", "15-24", "25+", "25-54", "55+" and other neccessary identifiers specified to specify place in indigenousVectors
+// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
+const completeMissingGender = (geography, identity, characteristic, gender, education, age) => {
+    let completionObject = {
+        calculable: false,
+        calculation_queue: []
+    };
+
+    let totalGender_CO = completeMissingAge(geography, identity, characteristic, "total-gender", education, age);
+    let male_CO = completeMissingAge(geography, identity, characteristic, "male", education, age);
+    let female_CO = completeMissingAge(geography, identity, characteristic, "female", education, age);
+
+
+    switch (gender) {
+        case "total-gender":
+        default:
+            if (totalGender_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalGender_CO.calculation_queue);
+            } else if (male_CO.calculable && female_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
+                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
+                completionObject.calculation_queue.push("addition");
+            }
+            break;
+        case "men":
+            if (male_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...male_CO.calculation_queue);
+            } else if (totalGender_CO.calculable && female_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalGender_CO.calculation_queue);
+                completionObject.calculation_queue.push(...female_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+            }
+            break;
+        case "women":
+            if (female_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...female_CO.calculation_queue);
+            } else if (totalGender_CO.calculable && male_CO.calculable) {
+                completionObject.calculable = true;
+                completionObject.calculation_queue.push(...totalGender_CO.calculation_queue);
+                completionObject.calculation_queue.push(...male_CO.calculation_queue);
+                completionObject.calculation_queue.push("subtraction");
+            }
+            break;
+    }
+
+    return completionObject;
+}
+
+
+
 //----------------------------------------------------------------------------------
 // SERVER SETUP
 //----------------------------------------------------------------------------------
-
 
 
 // http server
@@ -226,19 +374,23 @@ QUERY PARARMS:
         latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
 */
 app.get("/get-vector", async (req, res) => {
-    // console.log("step 1a")
     const vectorId = req.query.vectorId;
     const latest = parseInt(req.query.latest) || 0;
     const start = parseInt(req.query.start) || 1;
-    // console.log("step 1b")
-    const vector = await getVector(req.query.vectorId, start, latest);
-    // console.log("step 1c")
-    if (vector instanceof Error) {
-        console.error("Error fetching or parsing data:", vector);
-        return res.status(500).send({ error: "Failed to fetch or parse data" });
+    let vector = "";
+    let fetchedNow = [];
+    if (vector_cache_global.hasOwnProperty(vectorId)) {
+        vector = vector_cache_global[vectorId];
+    } else {
+        vector = await getVector(req.query.vectorId, start, latest);
+        if (vector instanceof Error) {
+            console.error("Error fetching or parsing data:", vector);
+            return res.status(500).send({ error: "Failed to fetch or parse data" });
+        }
+        vector_cache_global[vectorId] = vector;
+        fetchedNow.push(vectorId);
     }
-    // console.log("step 1d")
-    res.send(vector); 
+    res.send({ data: vector, fetched: fetchedNow }); 
 });
 
 
@@ -281,6 +433,10 @@ RETURN
 
 */
 app.get("/get-indigenous-chart", async (req, res) => {
+    // local cache to only store vector ids
+    // when /get-indigenous-chart is done, local cache is used to determine which arrays are destroyed in global cache
+    let vector_cache_local = [];
+
     // chart has two axes: time and characteristic, so following values only have one string val. 
     // chart only displays data for one geographic region
     const geography = req.query.geography || "can";
@@ -307,6 +463,16 @@ app.get("/get-indigenous-chart", async (req, res) => {
         : req.query.age
             ? [req.query.age]
             : ["15+"];
+    // correct for + symbol being lost in query params
+    for (let i = 0; i < ages.length; i++) {
+        if (ages[i] == '15 ') {
+            ages[i] = "15+";
+        } else if (ages[i] == '55 ') {
+            ages[i] = "55+";
+        } else if (ages[i] == '25 ') {
+            ages[i] = "25+";
+        }
+    }
 
     const start = parseInt(req.query.start) || 1;
     const latest = parseInt(req.query.latest) || 0;
@@ -326,39 +492,40 @@ app.get("/get-indigenous-chart", async (req, res) => {
         let response = {"ok": false};
 
         if (vectorId != "") {
-            console.log("i might do a thing")
-            let response = await fetch(
+            response = await fetch(
                 `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
             );
         } else {
-            console.log("shits missing lol")
-
-            let completionObject = completeMissingAge(geography, identity, characteristic, gender, education, age);
+            // gender is top level of the hierarchy, so it will try completion for gender, education, and age (identity is not mutually exclusive)
+            let completionObject = completeMissingGender(geography, identity, characteristic, gender, education, age);
 
             if (completionObject.calculable) {
                 let calculation_queue = completionObject.calculation_queue
-                let response = await fetch(
-                    `${BACKEND_URL}/get-missing-trend?vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
+                response = await fetch(
+                    `${BACKEND_URL}/get-synthesis-trend?vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ calculation_queue })
                     }
                 );
             }
         }
 
-        console.log("wowza")
         if (response.ok) {
             const trend = await response.json();
-            chartArray.push(trend);
+            chartArray.push(trend.data);
+            vector_cache_local.push(...trend.fetched);
         }
     }))))))));
-
-    console.log("out of the loop :3");
 
     let chartObject = {
         "geography": geography,
         "characteristic": characteristic,
         "trends": chartArray
+    }
+
+    for (index in vector_cache_local) {
+        delete vector_cache_global[vector_cache_local[index]];
     }
 
     res.send(chartObject);
@@ -404,14 +571,17 @@ app.get("/get-trend", async (req, res) => {
     const response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${vectorId}&start=${start}&latest=${latest}`);
     const vector = await response.json();
 
-    timeSeries = vectorToTimeSeries(vector);
+    timeSeries = vectorToTimeSeries(vector.data);
 
     if (vectorName[vectorName.length - 1] == " ") {
         vectorName = vectorName.substring(0, vectorName.length - 1) + "+";
     }
     trendObject = {
-        "name": vectorName,
-        "time_series": timeSeries
+        data: {
+            "name": vectorName,
+            "time_series": timeSeries
+        },
+        fetched: vector.fetched
     };
 
     res.send(trendObject);
@@ -428,10 +598,6 @@ app.get("/get-trend", async (req, res) => {
 /*
 QUERY PARAMS
 
-    opperation (string):
-        one of "addition", "subtraction", "multiplication", or "divison", applied on the values of the time series
-        applied as vector1 [opp] vector2 (not neccessarily commutative) 
-
     vectorName (string), start (int), finish (int):
         same as /get-trend
 
@@ -445,11 +611,13 @@ RETURN
     same as /get-trend
 
 */
-app.get("/get-synthesis-trend", async (req, res) => {
+app.post("/get-synthesis-trend", async (req, res) => {
     let vectorName = req.query.vectorName || "unnamed";
     const start = req.query.start || "1";
     const latest = req.query.latest || "0";
     let calculationQueue = req.body.calculation_queue;
+
+    let fetchedSynthesis = [];
 
     let calculationStack = [];
 
@@ -461,35 +629,36 @@ app.get("/get-synthesis-trend", async (req, res) => {
                 for (let key in calculationStack[1]) {
                     calculationStack[1][key] += calculationStack[0][key];
                 }
-                calculationStack = calculationStack.shift();
+                calculationStack.shift();
                 break;
             case "subtraction":
                 for (let key in calculationStack[1]) {
                     calculationStack[1][key] -= calculationStack[0][key];
                 }
-                calculationStack = calculationStack.shift();
+                calculationStack.shift();
                 break;
             case "multiplication":
                 for (let key in calculationStack[1]) {
                     calculationStack[1][key] *= calculationStack[0][key];
                 }
-                calculationStack = calculationStack.shift();
+                calculationStack.shift();
                 break;
             case "divsion":
                 for (let key in calculationStack[0]) {
                     calculationStack[1][key] /= calculationStack[0][key];
                 }
-                calculationStack = calculationStack.shift();
+                calculationStack.shift();
                 break;
             // invalid token will be handled by /get-vector
             default:
                 let response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${curr}&start=${start}&latest=${latest}`);
                 let vector = await response.json();
-                let timeSeries = vectorToTimeSeries(vector);
+                let timeSeries = vectorToTimeSeries(vector.data);
+                fetchedSynthesis.push(...vector.fetched);
                 calculationStack.unshift(timeSeries);
                 break;
         }
-        calculationQueue = calculationQueue.shift();
+        calculationQueue.shift();
     }
 
     let timeSeries = calculationStack[0];
@@ -498,8 +667,11 @@ app.get("/get-synthesis-trend", async (req, res) => {
         vectorName = vectorName.substring(0, vectorName.length - 1) + "+";
     }
     trendObject = {
-        "name": vectorName,
-        "time_series": timeSeries
+        data: {
+            "name": vectorName,
+            "time_series": timeSeries
+        },
+        fetched: fetchedSynthesis
     };
 
     res.send(trendObject);
