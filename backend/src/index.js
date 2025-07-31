@@ -27,15 +27,18 @@ key is vectorId and cache is unprocessed vector (same format as directly taken f
 */
 let vector_cache_global = {};
 
-const PORT = process.env.PORT || 3002;
-const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+const BACKEND_PORT = process.env.PORT || 3002;
+const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
 
 const app = express();
 app.use(json());
-app.use(cors({
-    origin: process.env.CLIENT_URL,
-    methods: ['POST', 'GET']  // Allow GET for root route
-}));
+app.use(cors());
+// TODO: fix this with Allow-Control-Allow-Origin
+// {
+//     origin: process.env.CLIENT_URL,
+//     methods: ['POST', 'GET', 'OPTIONS'],  // Allow GET for root route
+//     'Access-Control-Allow-Origin': '*'
+// }
 const server = http.createServer();
 
 //----------------------------------------------------------------------------------

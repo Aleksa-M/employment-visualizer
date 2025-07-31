@@ -1,3 +1,5 @@
+import Link from "react";
+
 export function About() {
 
     return (
