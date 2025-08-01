@@ -292,9 +292,9 @@ const completeMissingGender = (geography, identity, characteristic, gender, educ
         calculation_queue: []
     };
 
-    let totalGender_CO = completeMissingAge(geography, identity, characteristic, "total-gender", education, age);
-    let male_CO = completeMissingAge(geography, identity, characteristic, "male", education, age);
-    let female_CO = completeMissingAge(geography, identity, characteristic, "female", education, age);
+    let totalGender_CO = completeMissingEducation(geography, identity, characteristic, "total-gender", education, age);
+    let male_CO = completeMissingEducation(geography, identity, characteristic, "male", education, age);
+    let female_CO = completeMissingEducation(geography, identity, characteristic, "female", education, age);
 
 
     switch (gender) {
@@ -562,13 +562,15 @@ RETURN
 app.get("/get-trend", async (req, res) => {
     if (!req.query.vectorId) {
         res.status(500).send({ error: "Missing vectorID" });
+        return;
     }
     const vectorId = req.query.vectorId;
     let vectorName = req.query.vectorName || "unnamed"
-    const start = req.query.start || "1";
-    const latest = req.query.latest || "0";
+    const start = parseInt(req.query.start) || 1;
+    const latest = parseInt(req.query.latest) || 0;
     if (latest > start) {
         res.status(500).send({"error": "latest cant be bigger than start"});
+        return;
     }
 
     const response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${vectorId}&start=${start}&latest=${latest}`);

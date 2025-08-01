@@ -1,25 +1,33 @@
 import { CategoryScale } from "chart.js";
 import Chart from "chart.js/auto";
 import { Line } from "react-chartjs-2";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 Chart.register(CategoryScale);
 const BACKEND_PORT = process.env.PORT || 3002;
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
 
 export function Indigenous() {
-    const [chartLabel, setChartLabel] = useState("chart label");
-    const [chartYearSeries, setChartYearSeries] = useState([2023, 2024, 2025]);
+    // ------------------------------------------------------------------------------------
+    // STATES
+    // ------------------------------------------------------------------------------------
+    const [geography, setGeography] = useState("can");
+    const [characteristic, setCharacteristics] = useState("employment-rate");
 
-    const [trendLabel, setChartText] = useState("trend label");
-    const [trendData, setChartData] = useState([1, 2, 3]);
+    const [start, setStart] = useState(1);
+    const [latest, setLatest] = useState(0);
+
+    const [identities, setIdentities] = useState([]);
+    const [genders, setGenders] = useState([]);
+    const [educations, setEducations] = useState([]);
+    const [ages, setAges] = useState([]);
 
     const [chartTrends, setChartTrends] = useState({
-        labels: chartYearSeries,
+        labels: [2023, 2024, 2025],
         datasets: [
             {
-              label: trendLabel,
-              data: trendData,
+              label: "trend label",
+              data: [1, 2, 3],
               borderWidth: 1,
             }
         ]
@@ -29,7 +37,7 @@ export function Indigenous() {
         plugins: {
             title: {
                 display: true,
-                text: chartLabel
+                text: "chart label"
             },
             legend: {
                 display: true
@@ -37,13 +45,63 @@ export function Indigenous() {
         }
     })
 
+    // ------------------------------------------------------------------------------------
+    // EVENT HANDLERS
+    // ------------------------------------------------------------------------------------
+
+    const handleCheckBox = (e) => {
+        console.log(e.target.value);
+        switch (e.target.name) {
+            case "identity":
+                if (e.target.checked) setIdentities(prev => [...prev, e.target.value]);
+                else setIdentities(prev => prev.filter(item => item != e.target.value));
+                break;
+            
+            case "gender":
+                if (e.target.checked) setGenders(prev => [...prev, e.target.value]);
+                else setGenders(prev => prev.filter(item => item != e.target.value));
+                break;
+
+            case "education":
+                if (e.target.checked) setEducations(prev => [...prev, e.target.value]);
+                else setEducations(prev => prev.filter(item => item != e.target.value));
+                break;
+
+            case "age":
+                if (e.target.checked) setAges(prev => [...prev, e.target.value]);
+                else setAges(prev => prev.filter(item => item != e.target.value));
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    const handleYearChange = (e) => {
+        console.log(e.target.value);
+        if (e.target.name == "start") setStart(2024 - parseInt(e.target.value) + 1);
+        else if (e.target.name == "latest") setLatest(2024 - parseInt(e.target.value));
+    }
+
     const fetchChart = async () => {
         console.log("starting fetch")
+
+        let query = "";
+        if (geography != "") query += `geography=${geography}`;
+        if (characteristic != "") query += `&characteristic=${characteristic}`;
+        identities.forEach(identity => query += `&identity=${identity}`);
+        genders.forEach(gender => query += `&gender=${gender}`);
+        educations.forEach(education => query += `&education=${education}`);
+        ages.forEach(age => query += `&age=${age}`);
+        query += `&start=${start}`
+        query += `&latest=${latest}`
+
+        console.log(query)
 
         let header = {
             "Content-Type": "application/json"
         };
-        let response = await fetch(`${BACKEND_URL}/get-indigenous-chart?start=5`, {
+        let response = await fetch(`${BACKEND_URL}/get-indigenous-chart?${query}`, {
             headers: header
         }).catch((error) => {
             console.log(`ERROR: ${error}`);
@@ -71,6 +129,21 @@ export function Indigenous() {
         });
     }
 
+    // ------------------------------------------------------------------------------------
+    // HTML FILE
+    // ------------------------------------------------------------------------------------
+
+    useEffect(() => {
+        console.log(identities);
+        console.log(genders);
+        console.log(educations);
+        console.log(ages);
+    }, [identities, genders, educations, ages])
+
+    // ------------------------------------------------------------------------------------
+    // HTML FILE
+    // ------------------------------------------------------------------------------------
+
     return (
         <div className="chart-container">
             <h2 style={{ textAlign: "center" }}>Indigenous Trends</h2>
@@ -78,6 +151,72 @@ export function Indigenous() {
                 data={chartTrends}
                 options={chartOptions}
             />
+            <div>
+                <h3>Indigenous Identity</h3>
+                <input type="checkbox" name="identity" value="indigenous" onChange={handleCheckBox}/> All Indigenous Groups <br></br>
+                <input type="checkbox" name="identity" value="non-indigenous" onChange={handleCheckBox}/> Non-Indigenous <br></br>
+                <input type="checkbox" name="identity" value="first-nations" onChange={handleCheckBox}/> First Nations <br></br>
+                <input type="checkbox" name="identity" value="metis" onChange={handleCheckBox}/> Metis <br></br>
+                <input type="checkbox" name="identity" value="inuit" onChange={handleCheckBox}/> Inuit <br></br>
+                <input type="checkbox" name="identity" value="total-everyone" onChange={handleCheckBox}/> Total population <br></br>
+
+                <h3>Gender</h3>
+                <input type="checkbox" name="gender" value="total-gender" onChange={handleCheckBox}/> All-genders <br></br>
+                <input type="checkbox" name="gender" value="men" onChange={handleCheckBox}/> men <br></br>
+                <input type="checkbox" name="gender" value="women" onChange={handleCheckBox}/> women <br></br>
+
+                <h3>Education</h3>
+                <input type="checkbox" name="education" value="total-education" onChange={handleCheckBox}/> All education levels <br></br>
+                <input type="checkbox" name="education" value="less-than-high-school" onChange={handleCheckBox}/> Less than high school <br></br>
+                <input type="checkbox" name="education" value="high-school-or-some-postsecondary" onChange={handleCheckBox}/> High school or some post-secondary <br></br>
+                <input type="checkbox" name="education" value="completed-postsecondary" onChange={handleCheckBox}/> Completed post secondary <br></br>
+
+                <h3>Age Ranges</h3>
+                <input type="checkbox" name="age" value="15+" onChange={handleCheckBox}/> 15+ <br></br>
+                <input type="checkbox" name="age" value="15-24" onChange={handleCheckBox}/> 15-24  <br></br>
+                <input type="checkbox" name="age" value="25+" onChange={handleCheckBox}/> 25+ <br></br>
+                <input type="checkbox" name="age" value="25-54" onChange={handleCheckBox}/> 25-54 <br></br>
+                <input type="checkbox" name="age" value="55+" onChange={handleCheckBox}/> 55+ <br></br>
+
+                <h3>Start Year</h3>
+                <select name="start" onChange={handleYearChange}>
+                    <option value="2010">2010</option>
+                    <option value="2011">2011</option>
+                    <option value="2012">2012</option>
+                    <option value="2013">2013</option>
+                    <option value="2014">2014</option>
+                    <option value="2015">2015</option>
+                    <option value="2016">2016</option>
+                    <option value="2017">2017</option>
+                    <option value="2018">2018</option>
+                    <option value="2019">2019</option>
+                    <option value="2020">2020</option>
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                </select>
+
+                <h3>End Year</h3>
+                <select name="latest" onChange={handleYearChange}>
+                    <option value="2010">2010</option>
+                    <option value="2011">2011</option>
+                    <option value="2012">2012</option>
+                    <option value="2013">2013</option>
+                    <option value="2014">2014</option>
+                    <option value="2015">2015</option>
+                    <option value="2016">2016</option>
+                    <option value="2017">2017</option>
+                    <option value="2018">2018</option>
+                    <option value="2019">2019</option>
+                    <option value="2020">2020</option>
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                </select>
+                
+            </div>
             <button onClick={fetchChart}>fetch chart</button>
         </div>
     );
