@@ -56,39 +56,55 @@ const getVector = async (vectorId, start, latest) => {
         },
         body: JSON.stringify([{ vectorId: vectorId, latestN: start}])
     };
-    try {
-        const response = await fetch('https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorsAndLatestNPeriods', options).then(
-            (res) => {
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                return res;
-            }
-        ).then(
-            res => res.json()
-        ).catch(
-            (err) => {
-                console.error("Error fetching data:", err);
-                return err;
-            }
-        );
-        let vector = response[0].object; // response is an array of responses, each being JSON with a status and object, and object is the actual vector
+    // try {
+        const res = await fetch('https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorsAndLatestNPeriods', options)
+        const response = await res.json();
+        // .then(
+        //     (res) => {
+        //         if (!res.ok) {
+        //             throw new Error(`HTTP error! status: ${res.status}`);
+        //         }
+        //         return res;
+        //     }
+        // ).then(
+        //     res => res.json()
+        // ).catch(
+        //     (err) => {
+        //         console.error("Error fetching data:", err);
+        //         return err;
+        //     }
+        // );
+
+        // response is an array of responses, each being JSON with a status and object, and object is the actual vector
+        // in the instance of a failure, the response will be:
+        // {
+        //     message: 'JSON syntax error, please refer to the manual to check the input JSON content'
+        // }
+        // since the api is designed to only get one vector at a time, response[0] picks the first vector and only vector in that array
+        let vector = response[0];
+        if (!vector.hasOwnProperty("object")) {
+            // ERROR HERE 
+            // return response saying that http method failed in some way
+        }
+        vector = vector.object;
         vector.vectorDataPoint = vector.vectorDataPoint.slice(0, start - latest);
-        return response[0].object;  
-    } catch (err) {
-        return err;
-    }
+        return response[0].object;
+
+    // } catch (err) {
+    //     return err;
+    // }
 }
 
 // Function to convert vector json to time series json
-// input is a vector json as retrieved from statscan, with vectorDataPoint already shaved
+// input is an array vectorDataPoint which is provided in the vector object from statcan, but can also be an empty array
 // returns a json where keys are time period and respective values are the value for that period
-const vectorToTimeSeries = (vector) => {
-    let data = vector.vectorDataPoint
+const vectorToTimeSeries = (vectorDataPoint) => {
     let timeSeries = {};
-    data.forEach((item) => {
+    
+    vectorDataPoint.forEach((item) => {
         timeSeries[item.refPer.substring(0, 4)] = parseFloat(item.value);
     });
+
     return timeSeries;
 }
 
@@ -380,20 +396,25 @@ app.get("/get-vector", async (req, res) => {
     const vectorId = req.query.vectorId;
     const latest = parseInt(req.query.latest) || 0;
     const start = parseInt(req.query.start) || 1;
+
     let vector = "";
     let fetchedNow = [];
+    
     if (vector_cache_global.hasOwnProperty(vectorId)) {
         vector = vector_cache_global[vectorId];
     } else {
         vector = await getVector(req.query.vectorId, start, latest);
         if (vector instanceof Error) {
-            console.error("Error fetching or parsing data:", vector);
-            return res.status(500).send({ error: "Failed to fetch or parse data" });
+            // ERROR HERE
+            // return error which is probably some HTTP thing
         }
         vector_cache_global[vectorId] = vector;
         fetchedNow.push(vectorId);
     }
-    res.send({ data: vector, fetched: fetchedNow }); 
+    res.send({
+        vector_data: vector,
+        fetched: fetchedNow
+    }); 
 });
 
 
@@ -492,7 +513,10 @@ app.get("/get-indigenous-chart", async (req, res) => {
     Promise.all(
     ages.map(async age => {
         let vectorId = indigenousVectors[geography][identity][characteristic][gender][education][age];
-        let response = {"ok": false};
+        let response = {
+            ok: false,
+            error: "nothing found"
+        };
 
         if (vectorId != "") {
             response = await fetch(
@@ -511,6 +535,9 @@ app.get("/get-indigenous-chart", async (req, res) => {
                         body: JSON.stringify({ calculation_queue })
                     }
                 );
+            } else {
+                // ERROR HERE
+                // return error object saying that there is no way to complete vector
             }
         }
 
@@ -518,7 +545,12 @@ app.get("/get-indigenous-chart", async (req, res) => {
             const trend = await response.json();
             chartArray.push(trend.data);
             vector_cache_local.push(...trend.fetched);
+        } else {
+            // ERROR HERE
+            // return whatever error is present in the response object
+            // should be response.error
         }
+
     }))))))));
 
     let chartObject = {
@@ -560,33 +592,47 @@ RETURN
 
 */
 app.get("/get-trend", async (req, res) => {
-    if (!req.query.vectorId) {
-        res.status(500).send({ error: "Missing vectorID" });
-        return;
+    if (vectorName[vectorName.length - 1] == " ") {
+        vectorName = vectorName.substring(0, vectorName.length - 1) + "+";
     }
+
     const vectorId = req.query.vectorId;
     let vectorName = req.query.vectorName || "unnamed"
     const start = parseInt(req.query.start) || 1;
     const latest = parseInt(req.query.latest) || 0;
+
+    if (req.query.vectorId == "") {
+        // ERROR HERE
+        // return error saying that the vectorId is missing
+    }
     if (latest > start) {
-        res.status(500).send({"error": "latest cant be bigger than start"});
-        return;
+        // ERROR HERE
+        // return error saying that the vectorId is missing
     }
 
     const response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${vectorId}&start=${start}&latest=${latest}`);
     const vector = await response.json();
 
-    timeSeries = vectorToTimeSeries(vector.data);
-
-    if (vectorName[vectorName.length - 1] == " ") {
-        vectorName = vectorName.substring(0, vectorName.length - 1) + "+";
+    if (vector.hasOwnProperty("error")) {
+        // ERROR HERE
+        // return error saying whatever vector has as an arror
+        res.send({
+            ok: false,
+            error: response
+        })
     }
+
+    timeSeries = vectorToTimeSeries(vector.vector_data.vectorDataPoint);
+
+    let fetchedNow = [];
+    fetchedNow.push(vector.fetched)
+
     trendObject = {
-        data: {
-            "name": vectorName,
-            "time_series": timeSeries
+        trend_data: {
+            name: vectorName,
+            time_series: timeSeries
         },
-        fetched: vector.fetched
+        fetched: fetchedNow
     };
 
     res.send(trendObject);
@@ -658,7 +704,7 @@ app.post("/get-synthesis-trend", async (req, res) => {
             default:
                 let response = await fetch(`${BACKEND_URL}/get-vector?vectorId=${curr}&start=${start}&latest=${latest}`);
                 let vector = await response.json();
-                let timeSeries = vectorToTimeSeries(vector.data);
+                let timeSeries = vectorToTimeSeries(vector.vector_data.vectorDataPoint);
                 fetchedSynthesis.push(...vector.fetched);
                 calculationStack.unshift(timeSeries);
                 break;
