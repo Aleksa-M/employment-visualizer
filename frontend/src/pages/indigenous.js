@@ -2,6 +2,7 @@ import { CategoryScale } from "chart.js";
 import Chart from "chart.js/auto";
 import { Line } from "react-chartjs-2";
 import { useState, useEffect } from "react";
+import { nameToIdentifier, identifierToName } from '../helpers';
 
 Chart.register(CategoryScale);
 const BACKEND_PORT = process.env.PORT || 3002;
@@ -42,8 +43,25 @@ export function Indigenous() {
             legend: {
                 display: true
             }
+        },
+        scales: {
+            y: {
+                title: {
+                    display: true,
+                    text: 'default'
+                },
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'year'
+                },
+            },
         }
     })
+
+    const [unavailable, setUnavailable] = useState([])
+    const [rendered, setRendered] = useState([])
 
     // ------------------------------------------------------------------------------------
     // EVENT HANDLERS
@@ -86,62 +104,145 @@ export function Indigenous() {
     const fetchChart = async () => {
         console.log("starting fetch")
 
-        let query = "";
-        if (geography != "") query += `geography=${geography}`;
-        if (characteristic != "") query += `&characteristic=${characteristic}`;
-        identities.forEach(identity => query += `&identity=${identity}`);
-        genders.forEach(gender => query += `&gender=${gender}`);
-        educations.forEach(education => query += `&education=${education}`);
-        ages.forEach(age => query += `&age=${age}`);
-        query += `&start=${start}`
-        query += `&latest=${latest}`
+        // let query = "";
+        // if (geography != "") query += `geography=${geography}`;
+        // if (characteristic != "") query += `&characteristic=${characteristic}`;
+        // identities.forEach(identity => query += `&identity=${identity}`);
+        // genders.forEach(gender => query += `&gender=${gender}`);
+        // educations.forEach(education => query += `&education=${education}`);
+        // ages.forEach(age => query += `&age=${age}`);
+        // query += `&start=${start}`
+        // query += `&latest=${latest}`
 
-        console.log(query)
+        // let header = {
+        //     "Content-Type": "application/json"
+        // };
+        // let response = await fetch(`${BACKEND_URL}/get-indigenous-chart?${query}`, {
+        //     headers: header
+        // }).catch((error) => {
+        //     console.log(`ERROR: ${error}`);
+        //     return;
+        // })
+        // let chart = await response.json();
 
-        let header = {
-            "Content-Type": "application/json"
-        };
-        let response = await fetch(`${BACKEND_URL}/get-indigenous-chart?${query}`, {
-            headers: header
-        }).catch((error) => {
-            console.log(`ERROR: ${error}`);
-            return;
-        })
-        let chart = await response.json();
+        // let trends = chart.trends;
+        // let dataSets = [];
+        // let years = [];
+        // let nextUnavailable = [];
 
-        let trends = chart.trends;
+        // trends.forEach((trend) => {
+        //     if (Object.keys(trend.time_series).length > years.length) years = Object.keys(trend.time_series);
+        //     // TODO: some status code thing
+        //     if (trend.responseStatusCode >= 400) {
+        //         nextUnavailable.push(trend.name);
+        //     } else {
+        //         dataSets.push({
+        //             label: trend.name,
+        //             data: Object.values(trend.time_series),
+        //             borderWidth: 1
+        //         })
+        //     }
+        // })
+
         let dataSets = [];
-        
-        trends.forEach((trend) => {
-            dataSets.push({
-                label: trend.name,
-                data: Object.values(trend.time_series),
-                borderWidth: 1
-            })
-        })
+        let years = [];
+        let nextUnavailable = [];
+
+        await Promise.all(
+        identities.map(identity =>
+        Promise.all(
+        genders.map(gender =>
+        Promise.all(
+        educations.map(education =>
+        Promise.all(
+        ages.map(async age => {
+            let name = `${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`
+            
+            
+            if (!rendered.includes(name)) {
+                let query = `geography=${geography}&characteristic=${characteristic}&identity=${identity}&gender=${gender}&education=${education}&age=${age}`
+
+                let header = {
+                    "Content-Type": "application/json"
+                };
+                let response = await fetch(`${BACKEND_URL}/get-indigenous-trend?${query}`, {
+                    headers: header
+                }).then(res => res.json)
+                .catch((error) => {
+                    console.log(`ERROR: ${error}`);
+                    return;
+                });
+
+                let trend = response.trend_data;
+
+                if (Object.keys(trend.time_series).length > years.length) years = Object.keys(trend.time_series);
+
+                // TODO: some status code thing
+                if (trend.responseStatusCode >= 400) {
+                    nextUnavailable.push(trend.trend_name);
+                } else {
+                    dataSets.push({
+                        label: trend.name,
+                        data: Object.values(trend.time_series),
+                        borderWidth: 1
+                    })
+                }
+            }
 
 
-        let years = Object.keys(trends[0].time_series);
+        }))))))));
+            
 
-        setChartTrends({
+        let yText = "";
+
+        switch (characteristic) {
+            case "population":
+                yText = "Population (1000 persons)";
+                break;
+            case "employment-rate":
+                yText = "Employment rate (% of respective demographic)";
+                break;
+            case "participation-rate":
+                yText = "Participation rate (% of respective demographic)";
+                break;
+            case "unemployment-rate":
+                yText = "Unemployment rate (% of respective demographic)";
+                break;
+            default:
+                yText = "N/A";
+                break;
+        }
+
+        setChartTrends(() => ({
             labels: years,
             datasets: dataSets
-        });
+        }));
+        setChartOptions(prevOptions => ({
+            ...prevOptions,
+            scales: {
+                ...prevOptions.scales,
+                y: {
+                    ...prevOptions.scales.y,
+                    title: {
+                        ...prevOptions.scales.y.title,
+                        text: yText
+                    }
+                }
+            }
+        }));
+        setUnavailable(nextUnavailable);
     }
 
     // ------------------------------------------------------------------------------------
-    // HTML FILE
+    // HOOKS
     // ------------------------------------------------------------------------------------
 
     useEffect(() => {
-        console.log(identities);
-        console.log(genders);
-        console.log(educations);
-        console.log(ages);
+
     }, [identities, genders, educations, ages])
 
     // ------------------------------------------------------------------------------------
-    // HTML FILE
+    // HTML
     // ------------------------------------------------------------------------------------
 
     return (
@@ -152,6 +253,23 @@ export function Indigenous() {
                 options={chartOptions}
             />
             <div>
+                <h2>Unavailable</h2>
+                <ul>
+                    {
+                        unavailable.map(item => (
+                            <li key={item}> {item} </li>
+                        ))
+                    }
+                </ul>
+
+                <h3>Labour Characteristic</h3>
+                <select name="start" onChange={handleYearChange}>
+                    <option value="population">Population</option>
+                    <option value="employment-rate" selected="selected">Employment rate</option>
+                    <option value="participation-rate">Participation rate</option>
+                    <option value="unemployment-rate">Unemployment rate</option>
+                </select>
+
                 <h3>Indigenous Identity</h3>
                 <input type="checkbox" name="identity" value="indigenous" onChange={handleCheckBox}/> All Indigenous Groups <br></br>
                 <input type="checkbox" name="identity" value="non-indigenous" onChange={handleCheckBox}/> Non-Indigenous <br></br>
@@ -190,7 +308,7 @@ export function Indigenous() {
                     <option value="2017">2017</option>
                     <option value="2018">2018</option>
                     <option value="2019">2019</option>
-                    <option value="2020">2020</option>
+                    <option value="2020" selected="selected">2020</option>
                     <option value="2021">2021</option>
                     <option value="2022">2022</option>
                     <option value="2023">2023</option>
@@ -213,7 +331,7 @@ export function Indigenous() {
                     <option value="2021">2021</option>
                     <option value="2022">2022</option>
                     <option value="2023">2023</option>
-                    <option value="2024">2024</option>
+                    <option value="2024" selected="selected">2024</option>
                 </select>
                 
             </div>
