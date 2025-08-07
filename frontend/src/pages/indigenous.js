@@ -13,9 +13,9 @@ export function Indigenous() {
     // STATES
     // ------------------------------------------------------------------------------------
     const [geography, setGeography] = useState("can");
-    const [characteristic, setCharacteristics] = useState("employment-rate");
+    const [characteristic, setCharacteristic] = useState("employment-rate");
 
-    const [start, setStart] = useState(1);
+    const [start, setStart] = useState(4);
     const [latest, setLatest] = useState(0);
 
     const [identities, setIdentities] = useState([]);
@@ -24,14 +24,8 @@ export function Indigenous() {
     const [ages, setAges] = useState([]);
 
     const [chartTrends, setChartTrends] = useState({
-        labels: [2023, 2024, 2025],
-        datasets: [
-            {
-              label: "trend label",
-              data: [1, 2, 3],
-              borderWidth: 1,
-            }
-        ]
+        labels: [],
+        datasets: []
     });
 
     const [chartOptions, setChartOptions] = useState({
@@ -68,37 +62,42 @@ export function Indigenous() {
     // ------------------------------------------------------------------------------------
 
     const handleCheckBox = (e) => {
-        console.log(e.target.value);
         switch (e.target.name) {
             case "identity":
                 if (e.target.checked) setIdentities(prev => [...prev, e.target.value]);
                 else setIdentities(prev => prev.filter(item => item != e.target.value));
                 break;
-            
             case "gender":
                 if (e.target.checked) setGenders(prev => [...prev, e.target.value]);
                 else setGenders(prev => prev.filter(item => item != e.target.value));
                 break;
-
             case "education":
                 if (e.target.checked) setEducations(prev => [...prev, e.target.value]);
                 else setEducations(prev => prev.filter(item => item != e.target.value));
                 break;
-
             case "age":
                 if (e.target.checked) setAges(prev => [...prev, e.target.value]);
                 else setAges(prev => prev.filter(item => item != e.target.value));
                 break;
-
             default:
                 break;
         }
     }
 
-    const handleYearChange = (e) => {
-        console.log(e.target.value);
-        if (e.target.name == "start") setStart(2024 - parseInt(e.target.value) + 1);
-        else if (e.target.name == "latest") setLatest(2024 - parseInt(e.target.value));
+    const handleDropdown = (e) => {
+        switch (e.target.name) {
+            case "start":
+                setStart(2024 - parseInt(e.target.value) + 1);
+                break;
+            case "latest":
+                setLatest(2024 - parseInt(e.target.value));
+                break;
+            case "characteristic":
+                setCharacteristic(e.target.value);
+                break;
+            default:
+                break;
+        }
     }
 
     const fetchChart = async () => {
@@ -147,6 +146,9 @@ export function Indigenous() {
         let dataSets = [];
         let years = [];
         let nextUnavailable = [];
+        let nextRendered = [];
+
+        console.log(rendered);
 
         await Promise.all(
         identities.map(identity =>
@@ -156,42 +158,64 @@ export function Indigenous() {
         educations.map(education =>
         Promise.all(
         ages.map(async age => {
-            let name = `${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`
-            
-            
+            let name = `${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`
+
             if (!rendered.includes(name)) {
-                let query = `geography=${geography}&characteristic=${characteristic}&identity=${identity}&gender=${gender}&education=${education}&age=${age}`
+                console.log("rendering!")
+                let query = `geography=${geography}&characteristic=${characteristic}&identity=${identity}&gender=${gender}&education=${education}&age=${age}&start=${start}&latest=${latest}`
 
                 let header = {
                     "Content-Type": "application/json"
                 };
                 let response = await fetch(`${BACKEND_URL}/get-indigenous-trend?${query}`, {
                     headers: header
-                }).then(res => res.json)
+                }).then(res => res.json())
                 .catch((error) => {
                     console.log(`ERROR: ${error}`);
                     return;
                 });
 
-                let trend = response.trend_data;
+                let trends = response.trends;
+                let trend = trends[0]
 
                 if (Object.keys(trend.time_series).length > years.length) years = Object.keys(trend.time_series);
 
                 // TODO: some status code thing
                 if (trend.responseStatusCode >= 400) {
-                    nextUnavailable.push(trend.trend_name);
+                    console.log("unavailable")
+                    nextUnavailable.push(trend.name);
                 } else {
+                    console.log("available")
                     dataSets.push({
                         label: trend.name,
                         data: Object.values(trend.time_series),
                         borderWidth: 1
                     })
                 }
+
+                nextRendered.push(trend.name);
+
+            } else {
+                console.log("already rendered!")
+                // all trends have the same yearspan, thus if one is rendered, then that yearspan has already been rendered
+                years = chartTrends.labels;
+                for (let i = 0; i < chartTrends.datasets.length; i++) {
+                    if (chartTrends.datasets[i].label == name) {
+                        dataSets.push({
+                            label: chartTrends.datasets[i].label,
+                            data: chartTrends.datasets[i].data,
+                            borderWith: 1
+                        })
+                    }
+                }
+                if (unavailable.includes(name)) {
+                    nextUnavailable.push(name);
+                }
+
+                nextRendered.push(name)
             }
 
-
         }))))))));
-            
 
         let yText = "";
 
@@ -231,6 +255,7 @@ export function Indigenous() {
             }
         }));
         setUnavailable(nextUnavailable);
+        setRendered(nextRendered);
     }
 
     // ------------------------------------------------------------------------------------
@@ -238,8 +263,24 @@ export function Indigenous() {
     // ------------------------------------------------------------------------------------
 
     useEffect(() => {
+        console.log(identities)
+    }, [identities])
 
-    }, [identities, genders, educations, ages])
+    useEffect(() => {
+        console.log(genders)
+    }, [genders])
+
+    useEffect(() => {
+        console.log(educations)
+    }, [educations])
+
+    useEffect(() => {
+        console.log(ages)
+    }, [ages])
+
+    useEffect(() => {
+        console.log(rendered)
+    }, [rendered])
 
     // ------------------------------------------------------------------------------------
     // HTML
@@ -263,7 +304,7 @@ export function Indigenous() {
                 </ul>
 
                 <h3>Labour Characteristic</h3>
-                <select name="start" onChange={handleYearChange}>
+                <select name="characteristic" onChange={handleDropdown}>
                     <option value="population">Population</option>
                     <option value="employment-rate" selected="selected">Employment rate</option>
                     <option value="participation-rate">Participation rate</option>
@@ -297,7 +338,7 @@ export function Indigenous() {
                 <input type="checkbox" name="age" value="55+" onChange={handleCheckBox}/> 55+ <br></br>
 
                 <h3>Start Year</h3>
-                <select name="start" onChange={handleYearChange}>
+                <select name="start" onChange={handleDropdown}>
                     <option value="2010">2010</option>
                     <option value="2011">2011</option>
                     <option value="2012">2012</option>
@@ -316,7 +357,7 @@ export function Indigenous() {
                 </select>
 
                 <h3>End Year</h3>
-                <select name="latest" onChange={handleYearChange}>
+                <select name="latest" onChange={handleDropdown}>
                     <option value="2010">2010</option>
                     <option value="2011">2011</option>
                     <option value="2012">2012</option>

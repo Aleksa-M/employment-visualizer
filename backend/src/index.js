@@ -509,13 +509,13 @@ app.get("/get-indigenous-chart", async (req, res) => {
     educations.map(education =>
     Promise.all(
     ages.map(async age => {
-        let vectorId = indigenousVectors[geography][identity][characteristic][gender][education][age];
+        let vectorId = indigenonusVectors[geography][identity][characteristic][gender][education][age];
         let trendObject = {};
 
         if (vectorId != "") {
-            console.log(`present ${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`)
+            console.log(`present ${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`)
             trendObject = await fetch(
-                `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${geography}_${characteristic}_${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
+                `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
             ).then(res => res.json());
 
         } else {
@@ -523,10 +523,10 @@ app.get("/get-indigenous-chart", async (req, res) => {
             let completionObject = completeMissingGender(geography, identity, characteristic, gender, education, age);
 
             if (completionObject.calculable) {
-                console.log(`completable ${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`)
+                console.log(`completable ${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`)
                 let calculation_queue = completionObject.calculation_queue
                 trendObject = await fetch(
-                    `${BACKEND_URL}/get-synthesis-trend?vectorName=${geography}_${characteristic}_${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
+                    `${BACKEND_URL}/get-synthesis-trend?vectorName=${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ calculation_queue })
@@ -542,7 +542,7 @@ app.get("/get-indigenous-chart", async (req, res) => {
                     trendObject = {
                         trend_data: {
                             responseStatusCode: 404,
-                            name: `${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`,
+                            name: `${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`,
                             time_series: {}
                         },
                         fetched: []
@@ -622,21 +622,21 @@ app.get("/get-indigenous-trend", async (req, res) => {
 
     // chart has two axes: time and characteristic, so following values only have one string val. 
     // chart only displays data for one geographic region
-    const geography = req.query.geography || "can";
-    const characteristic = req.query.characteristic || "employment-rate";
+    let geography = req.query.geography || "can";
+    let characteristic = req.query.characteristic || "employment-rate";
 
     // chart consists of any number of trends, so following values can have any number of string values
-    const identity = req.query.identity || "indigenous";
-    const gender = req.query.gender || "total-gender";
-    const education = req.query.education || "total-education";
-    const age = req.query.age || "15+";
+    let identity = req.query.identity || "indigenous";
+    let gender = req.query.gender || "total-gender";
+    let education = req.query.education || "total-education";
+    let age = req.query.age || "15+";
     // correct for + symbol being lost in query params
     if (age == '15 ') age = "15+";
     else if (age == '55 ') age = "55+";
     else if (age == '25 ') age = "25+";
 
-    const start = parseInt(req.query.start) || 1;
-    const latest = parseInt(req.query.latest) || 0;
+    let start = parseInt(req.query.start) || 1;
+    let latest = parseInt(req.query.latest) || 0;
 
     let vectorId = indigenousVectors[geography][identity][characteristic][gender][education][age];
     let trendObject = {};
@@ -644,7 +644,7 @@ app.get("/get-indigenous-trend", async (req, res) => {
     if (vectorId != "") {
         console.log(`present ${identity}_${gender}_${education}_${age}`)
         trendObject = await fetch(
-            `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
+            `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
         ).then(res => res.json());
 
     } else {
@@ -655,7 +655,7 @@ app.get("/get-indigenous-trend", async (req, res) => {
             console.log(`completable ${identity}_${gender}_${education}_${age}`)
             let calculation_queue = completionObject.calculation_queue
             trendObject = await fetch(
-                `${BACKEND_URL}/get-synthesis-trend?vectorName=${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
+                `${BACKEND_URL}/get-synthesis-trend?vectorName=${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ calculation_queue })
@@ -666,12 +666,12 @@ app.get("/get-indigenous-trend", async (req, res) => {
             // ERROR HERE
             // return error object saying that there is no way to complete vector
             // it needs to be a promise because the other ones are promises
-            console.log(`incompleteable ${identity}_${gender}_${education}_${age}`)
+            console.log(`incompleteable ${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`)
             await new Promise(resolve => {
                 trendObject = {
                     trend_data: {
                         responseStatusCode: 404,
-                        name: `${identity}_${gender}_${education}_${age}`,
+                        name: `${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`,
                         time_series: {}
                     },
                     fetched: []
@@ -687,12 +687,10 @@ app.get("/get-indigenous-trend", async (req, res) => {
 
     vector_cache_local.push(...trendObject.fetched);
 
-    console.log(chartArray)
-
     let chartObject = {
         "geography": geography,
         "characteristic": characteristic,
-        "trend": trendObject.trend_data
+        "trends": [trendObject.trend_data]
     }
 
     for (index in vector_cache_local) {
