@@ -148,8 +148,6 @@ export function Indigenous() {
         let nextUnavailable = [];
         let nextRendered = [];
 
-        console.log(rendered);
-
         await Promise.all(
         identities.map(identity =>
         Promise.all(
@@ -161,7 +159,6 @@ export function Indigenous() {
             let name = `${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`
 
             if (!rendered.includes(name)) {
-                console.log("rendering!")
                 let query = `geography=${geography}&characteristic=${characteristic}&identity=${identity}&gender=${gender}&education=${education}&age=${age}&start=${start}&latest=${latest}`
 
                 let header = {
@@ -182,10 +179,8 @@ export function Indigenous() {
 
                 // TODO: some status code thing
                 if (trend.responseStatusCode >= 400) {
-                    console.log("unavailable")
                     nextUnavailable.push(trend.name);
                 } else {
-                    console.log("available")
                     dataSets.push({
                         label: trend.name,
                         data: Object.values(trend.time_series),
@@ -196,7 +191,6 @@ export function Indigenous() {
                 nextRendered.push(trend.name);
 
             } else {
-                console.log("already rendered!")
                 // all trends have the same yearspan, thus if one is rendered, then that yearspan has already been rendered
                 years = chartTrends.labels;
                 for (let i = 0; i < chartTrends.datasets.length; i++) {
