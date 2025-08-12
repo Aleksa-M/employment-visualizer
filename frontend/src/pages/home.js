@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import "./test.css"
+import 'src/map'
 
 export function Home() {
     return (
@@ -11,6 +12,7 @@ export function Home() {
                 <ul>
                     <li><Link to="./about"> Tool Overview </Link></li>
                     <li><Link to="./AnalysisIndex"> Analysis </Link></li>
+                    <map></map>
                 </ul>
             </nav>
         </div>
