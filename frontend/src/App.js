@@ -3,6 +3,7 @@ import { Home } from './pages/home';
 import { About } from './pages/about';
 import { Indigenous } from './pages/indigenous';
 import { AnalysisIndex} from './pages/AnalysisIndex'
+import { CanadaMap } from './pages/canadaMap';
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
       <Route path="/about" element={<About />} />
       <Route path="/indigenous" element={<Indigenous />} />
       <Route path="/AnalysisIndex" element={<AnalysisIndex />} />
+      <Route path="/canada-map" element={<CanadaMap />} />
     </Routes>
   );
 }

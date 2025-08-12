@@ -3,6 +3,9 @@ import Chart from "chart.js/auto";
 import { Line } from "react-chartjs-2";
 import { useState, useEffect } from "react";
 import { nameToIdentifier, identifierToName } from '../helpers';
+import { CanadaMap } from '../helpers';
+import Canada from "@react-map/canada";
+
 
 Chart.register(CategoryScale);
 const BACKEND_PORT = process.env.PORT || 3002;
@@ -61,6 +64,54 @@ export function Indigenous() {
     // EVENT HANDLERS
     // ------------------------------------------------------------------------------------
 
+    const handleMapSelect = (province) => {
+        switch (province) {
+            case "Newfoundland and Labrador":
+                setGeography("nl")
+                break;
+            case "Prince Edward Island":
+                setGeography("pei")
+                break;
+            case "Nova Scotia":
+                setGeography("ns")
+                break;
+            case "New Brunswick":
+                setGeography("nb")
+                break;
+            case "Quebec":
+                setGeography("qb")
+                break;
+            case "Ontario":
+                setGeography("on")
+                break;
+            case "Manitoba":
+                setGeography("mb")
+                break;
+            case "Saskatchewan":
+                setGeography("sk")
+                break;
+            case "Alberta":
+                setGeography("ab")
+                break;
+            case "British Columbia":
+                setGeography("bc")
+                break;
+            case "Nunavut":
+                setGeography("nv")
+                break;
+            case "Northwest Territories":
+                setGeography("nt")
+                break;
+            case "Yukon":
+                setGeography("yk")
+                break;
+        }
+    }
+
+    const handleResetMap = () => {
+        setGeography("can");
+    }
+
     const handleCheckBox = (e) => {
         switch (e.target.name) {
             case "identity":
@@ -102,46 +153,6 @@ export function Indigenous() {
 
     const fetchChart = async () => {
         console.log("starting fetch")
-
-        // let query = "";
-        // if (geography != "") query += `geography=${geography}`;
-        // if (characteristic != "") query += `&characteristic=${characteristic}`;
-        // identities.forEach(identity => query += `&identity=${identity}`);
-        // genders.forEach(gender => query += `&gender=${gender}`);
-        // educations.forEach(education => query += `&education=${education}`);
-        // ages.forEach(age => query += `&age=${age}`);
-        // query += `&start=${start}`
-        // query += `&latest=${latest}`
-
-        // let header = {
-        //     "Content-Type": "application/json"
-        // };
-        // let response = await fetch(`${BACKEND_URL}/get-indigenous-chart?${query}`, {
-        //     headers: header
-        // }).catch((error) => {
-        //     console.log(`ERROR: ${error}`);
-        //     return;
-        // })
-        // let chart = await response.json();
-
-        // let trends = chart.trends;
-        // let dataSets = [];
-        // let years = [];
-        // let nextUnavailable = [];
-
-        // trends.forEach((trend) => {
-        //     if (Object.keys(trend.time_series).length > years.length) years = Object.keys(trend.time_series);
-        //     // TODO: some status code thing
-        //     if (trend.responseStatusCode >= 400) {
-        //         nextUnavailable.push(trend.name);
-        //     } else {
-        //         dataSets.push({
-        //             label: trend.name,
-        //             data: Object.values(trend.time_series),
-        //             borderWidth: 1
-        //         })
-        //     }
-        // })
 
         let dataSets = [];
         let years = [];
@@ -282,11 +293,16 @@ export function Indigenous() {
 
     return (
         <div className="chart-container">
+            <h2 style={{ textAlign: "center" }}>Select Geographic Region</h2>
+            <Canada onSelect={handleMapSelect} size={900} hoverColor="orange" type="select-single"/>
+            <button onClick={handleResetMap}>Canada</button>
+
             <h2 style={{ textAlign: "center" }}>Indigenous Trends</h2>
             <Line
                 data={chartTrends}
                 options={chartOptions}
             />
+
             <div>
                 <h2>Unavailable</h2>
                 <ul>

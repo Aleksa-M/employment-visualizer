@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom"
 import "./test.css"
-import 'src/map'
 
 export function Home() {
     return (
