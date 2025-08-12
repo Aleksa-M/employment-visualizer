@@ -5,6 +5,7 @@ import { Indigenous } from './pages/indigenous';
 import { AnalysisIndex} from './pages/AnalysisIndex'
 import { CanadaMap } from './pages/canadaMap';
 
+// app
 function App() {
   return (
     <Routes>
