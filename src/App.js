@@ -4,7 +4,6 @@ import { About } from './pages/about';
 import { Indigenous } from './pages/indigenous';
 import { AnalysisIndex } from './pages/AnalysisIndex';
 import { PrimerTemp } from './pages/PrimerTemp';
-import { CanadaMap } from './pages/canadaMap';
 
 // app component
 function App() {
@@ -15,7 +14,6 @@ function App() {
       <Route path="/analysis-index/indigenous" element={<Indigenous />} />
       <Route path="/analysis-index" element={<AnalysisIndex />} />
       <Route path="/primer-temp" element={<PrimerTemp />} />
-      <Route path="/canada-map" element={<CanadaMap />} />
     </Routes>
   );
 }
