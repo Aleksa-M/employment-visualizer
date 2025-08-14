@@ -10,9 +10,9 @@ export function Home() {
             <nav>
                 <ul>
                     <li><Link to="./about"> Tool Overview </Link></li>
-                    <li><Link to="./AnalysisIndex"> Analysis </Link></li>
-                    <li><Link to="./Primertemp"> Temp for primer </Link></li>
-                    <li><Link to="./Map"> Interactive Map </Link></li>
+                    <li><Link to="./analysis-index"> Analysis </Link></li>
+                    <li><Link to="./primer-temp"> Temp for primer </Link></li>
+                    <li><Link to="./canada-map"> Interactive Map </Link></li>
                     <map></map>
                 </ul>
             </nav>
