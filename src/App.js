@@ -6,7 +6,7 @@ import { AnalysisIndex } from './pages/AnalysisIndex';
 import { PrimerTemp } from './pages/PrimerTemp';
 import CanadaMap from './pages/CanadaMap';
 
-// app
+// app component
 function App() {
   return (
     <Routes>
