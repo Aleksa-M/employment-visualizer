@@ -5,10 +5,11 @@ import { useState, useEffect } from "react";
 import { nameToIdentifier, identifierToName } from '../helpers';
 import Canada from "@react-map/canada";
 
-
 Chart.register(CategoryScale);
 const BACKEND_PORT = process.env.BACKEND_PORT || 3002;
-const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
+
+console.log(BACKEND_URL)
 
 export function Indigenous() {
     // ------------------------------------------------------------------------------------
@@ -285,6 +286,11 @@ export function Indigenous() {
     useEffect(() => {
         console.log(rendered)
     }, [rendered])
+
+    useEffect(() => {
+        console.log(process.env.BACKEND_URL);
+        console.log(process.env);
+    }, [])
 
     // ------------------------------------------------------------------------------------
     // HTML

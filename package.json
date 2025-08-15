@@ -29,7 +29,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
+    "predeploy": "cross-env REACT_APP_BACKEND_URL=\"https://employment-visualizer.onrender.com\" npm run build",
     "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
@@ -52,6 +52,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
+    "cross-env": "^10.0.0",
     "gh-pages": "^6.3.0",
     "gh-pages-clean": "^6.1.1"
   }
