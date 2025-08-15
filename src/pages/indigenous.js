@@ -7,7 +7,7 @@ import Canada from "@react-map/canada";
 
 
 Chart.register(CategoryScale);
-const BACKEND_PORT = process.env.PORT || 3002;
+const BACKEND_PORT = process.env.BACKEND_PORT || 3002;
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
 
 export function Indigenous() {
