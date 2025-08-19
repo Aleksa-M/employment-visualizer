@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/employment-visualizer/static/css/main.4de84b43.css",
-    "main.js": "/employment-visualizer/static/js/main.65558c3a.js",
+    "main.js": "/employment-visualizer/static/js/main.31b2dc23.js",
     "static/js/453.670e15c7.chunk.js": "/employment-visualizer/static/js/453.670e15c7.chunk.js",
     "index.html": "/employment-visualizer/index.html",
     "main.4de84b43.css.map": "/employment-visualizer/static/css/main.4de84b43.css.map",
-    "main.65558c3a.js.map": "/employment-visualizer/static/js/main.65558c3a.js.map",
+    "main.31b2dc23.js.map": "/employment-visualizer/static/js/main.31b2dc23.js.map",
     "453.670e15c7.chunk.js.map": "/employment-visualizer/static/js/453.670e15c7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.4de84b43.css",
-    "static/js/main.65558c3a.js"
+    "static/js/main.31b2dc23.js"
   ]
 }
