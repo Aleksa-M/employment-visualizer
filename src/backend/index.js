@@ -4,19 +4,41 @@ const http = require("http");
 const express = require("express");
 const { json } = require("express");
 
+const { completeMissingGenderRate } = require('./helpers/completionFunctions');
+
 /*
-HEIRARCHY OF indigenousVectors
+vectors from statscan tables are manually entered so that retrival on backend is blind.
+some vectors that are missing (esp from age when relating to education) can be derived from other vectors.
+
+HEIRARCHY OF indigenous-vectors
     1. geography
     2. indgenous groups/non-indigenous
-    3. characteristics
+    3. labour characteristic
     4. gender
     5. education
     6. age
 
-vectors from statscan tables are manually entered so that retrival on backend is blind.
-some vectors that are missing (esp from age when relating to education) can be derived from other vectors.
+Indigenous tables used:
+pid=1410035901
+pid=1410047001
+
+HEIRARCHY OF immigrant-vectors
+    1. geography
+    2. immigrant landing times/non-immigrants
+    3. place of origin
+    4. labour characteristic
+    5. gender
+    6. education
+    7. age
+
+Immigrant tables used:
+pid=1410047201
+pid=1410008701 (completed filling)
+
 */
-const indigenousVectors = require('./indigenous-vectors.json');
+const indigenousVectors = require('./vectors/indigenous-vectors.json');
+const immigrantVectors = require('./vectors/immigrant-vectors.json');
+
 
 /*
 cache to store vectors to minimize statscan WDS API calls.
@@ -111,826 +133,10 @@ const vectorToTimeSeries = (vectorDataPoint) => {
 
 
 
-// determines if age population is calculateable given all other vector parameters are fixed
-// bottom level of completion function hieararchy
-// input is age (string) and other neccessary identifiers specified to specify place in indigenousVectors
-// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
-const completeMissingAgePopulation = (geography, identity, gender, education, age) => {
-    let completionObject = {
-        calculable: false,
-        calculation_queue: []
-    };
-
-    let age_15p = indigenousVectors[geography][identity]["population"][gender][education]["15+"];
-    let age_15_24 = indigenousVectors[geography][identity]["population"][gender][education]["15-24"];
-    let age_25p = indigenousVectors[geography][identity]["population"][gender][education]["25+"];
-    let age_25_54 = indigenousVectors[geography][identity]["population"][gender][education]["25-54"];
-    let age_55p = indigenousVectors[geography][identity]["population"][gender][education]["55+"];
-
-    switch (age) {
-        case "15+":
-        default:
-            if (age_15p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15p);
-            } else if (age_15_24 != "" && age_25p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15_24);
-                completionObject.calculation_queue.push(age_25p);
-                completionObject.calculation_queue.push("addition");
-            } else if (age_15_24 != "" && age_25_54 != "" && age_55p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15_24);
-                completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.push("addition");
-                completionObject.calculation_queue.push(age_55p);
-                completionObject.calculation_queue.push("addition");
-            }
-            break;
-        case "15-24":
-            if (age_15_24 != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15_24);
-            } else if (age_15p != "" && age_25p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15p);
-                completionObject.calculation_queue.push(age_25p);
-                completionObject.calculation_queue.push("subtraction");
-            } else if (age_15p != "" && age_25_54 != "" && age_55p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15p);
-                completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.push("subtraction");
-                completionObject.calculation_queue.push(age_55p);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-        case "25+":
-            if (age_25p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_25p);
-            } else if (age_15p != "" && age_15_24 != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15p);
-                completionObject.calculation_queue.push(age_15_24);
-                completionObject.calculation_queue.push("subtraction");
-            } else if (age_25_54 != "" && age_55p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.push(age_55p);
-                completionObject.calculation_queue.push("addition");
-            }
-            break;
-        case "25-54":
-            if (age_25_54 != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_25_54);
-            } else if (age_15p != "" && age_15_24 != "" && age_55p) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15p);
-                completionObject.calculation_queue.push(age_15_24);
-                completionObject.calculation_queue.push("subtraction");
-                completionObject.calculation_queue.push(age_55p);
-                completionObject.calculation_queue.push("subtraction");
-            } else if (age_25p != "" && age_55p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_25p);
-                completionObject.calculation_queue.push(age_55p);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-        case "55+":
-            if (age_55p != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_55p);
-            } else if (age_15p != "" && age_15_24 != "" && age_25_54) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_15p);
-                completionObject.calculation_queue.push(age_15_24);
-                completionObject.calculation_queue.push("subtraction");
-                completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.push("subtraction");
-            } else if (age_25p != "" && age_25_54 != "") {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(age_25p);
-                completionObject.calculation_queue.push(age_25_54);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-    }
-
-    return completionObject;
-}
-
-
-
-// determines if age rate is calculateable given all other vector parameters are fixed
-// bottom level of completion function hieararchy
-// input is age (string) and other neccessary identifiers specified to specify place in indigenousVectors
-// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
-const completeMissingAgeRate = (geography, identity, characteristic, gender, education, age) => {
-    let completionObject = {
-        calculable: false,
-        calculation_queue: []
-    };
-
-    let target = indigenousVectors[geography][identity][characteristic][gender][education][age];
-    if (target != "") {
-        completionObject.calculable = true;
-        completionObject.calculation_queue.push(target);
-        return completionObject;
-    }
-
-    let populationCompletion = completeMissingAgePopulation(geography, identity, gender, education, age);
-    // target == "" ensures that calculable isnt false if you have the rate
-    if (!populationCompletion.calculable && target == "") return completionObject;
-    if (characteristic == "population") return populationCompletion;
-
-    let age_15p_rate = indigenousVectors[geography][identity][characteristic][gender][education]["15+"];
-    let age_15p_pop_CO = completeMissingAgePopulation(geography, identity, gender, education, "15+");
-
-    let age_15_24_rate = indigenousVectors[geography][identity][characteristic][gender][education]["15-24"];
-    let age_15_24_pop_CO = completeMissingAgePopulation(geography, identity, gender, education, "15-24");
-
-    let age_25p_rate = indigenousVectors[geography][identity][characteristic][gender][education]["25+"];
-    let age_25p_pop_CO = completeMissingAgePopulation(geography, identity, gender, education, "25+");
-
-    let age_25_54_rate = indigenousVectors[geography][identity][characteristic][gender][education]["25-54"];
-    let age_25_54_pop_CO = completeMissingAgePopulation(geography, identity, gender, education, "25-54");
-
-    let age_55p_rate = indigenousVectors[geography][identity][characteristic][gender][education]["55+"];
-    let age_55p_pop_CO = completeMissingAgePopulation(geography, identity, gender, education, "55+");
-
-
-    switch (age) {
-        // determine if you can calculate the count of the characteristic in the demographic
-        case "15+":
-        default:
-            if ((age_15p_rate != "")
-                && (age_15p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15p_rate);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((age_15_24_rate != "" && age_25p_rate != "")
-                && (age_15_24_pop_CO.calculable && age_25p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15_24_rate);
-                    completionObject.calculation_queue.push(...age_15_24_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_25p_rate);
-                    completionObject.calculation_queue.push(...age_25p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("addition");
-
-            } else if ((age_15_24_rate != "" && age_25_54_rate != "" && age_55p_rate != "")
-                && (age_15_24_pop_CO.calculable && age_25_54_pop_CO.calculable && age_55p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15_24_rate);
-                    completionObject.calculation_queue.push(...age_15_24_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_25_54_rate);
-                    completionObject.calculation_queue.push(...age_25_54_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("addition");
-
-                    completionObject.calculation_queue.push(age_55p_rate);
-                    completionObject.calculation_queue.push(...age_55p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("addition");
-
-            } else {
-                return completionObject;
-            }
-            break;
-
-
-        case "15-24":
-            if ((age_15_24_rate != "") 
-                && (age_15_24_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15_24_rate);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((age_15p_rate != "" && age_25p_rate != "")
-                && (age_15p_pop_CO.calculable && age_25p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_25p_rate);
-                    completionObject.calculation_queue.push(...age_25p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_15p_rate);
-                    completionObject.calculation_queue.push(...age_15p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else if ((age_15p_rate != "" && age_25_54_rate != "" && age_55p_rate != "")
-                && (age_15p_pop_CO.calculable && age_25_54_pop_CO.calculable && age_55p_pop_completion.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15p_rate);
-                    completionObject.calculation_queue.push(...age_15p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_25_54_rate);
-                    completionObject.calculation_queue.push(...age_25_54_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_55p_rate);
-                    completionObject.calculation_queue.push(...age_55p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("addition");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else {
-                return completionObject;
-            }
-            break;
-
-
-        case "25+":
-            if ((age_25p_rate != "") 
-                && (age_25p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_25p_rate);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((age_15p_rate != "" && age_15_24_rate != "")
-                && (age_15p_pop_CO.calculable && age_15_24_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15p_rate);
-                    completionObject.calculation_queue.push(...age_15p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_15_24_rate);
-                    completionObject.calculation_queue.push(...age_15_24_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else if ((age_25_54_rate != "" && age_55p_rate != "")
-                && (age_25_54_pop_CO.calculable && age_55p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_25_54_rate);
-                    completionObject.calculation_queue.push(...age_25_54_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_55p_rate);
-                    completionObject.calculation_queue.push(...age_55p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("addition");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else {
-                return completionObject;
-            }
-            break;
-
-        
-        case "25-54":
-            if ((age_25_54_rate != "")
-                && (age_25p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_25_54_rate);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((age_25p_rate != "" && age_55p_rate != "")
-                && (age_25p_pop_CO.calculable && age_55p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_25p_rate);
-                    completionObject.calculation_queue.push(...age_25p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_55p_rate);
-                    completionObject.calculation_queue.push(...age_55p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else if ((age_15p_rate != "" && age_15_24_rate != "" && age_55p_rate)
-                && (age_15p_pop_CO.calculable && age_15_24_pop_CO.calculable && age_55p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15p_rate);
-                    completionObject.calculation_queue.push(...age_15p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_15_24_rate);
-                    completionObject.calculation_queue.push(...age_15_24_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-                    completionObject.calculation_queue.push(age_55p_rate);
-                    completionObject.calculation_queue.push(...age_55p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else {
-                return completionObject;
-            }
-            break;
-
-
-        case "55+":
-            if ((age_55p_rate != "")
-                && (age_25p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_25_54_rate);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((age_25p_rate != "" && age_25_54_rate != "")
-                && (age_25p_pop_CO.calculable && age_25_54_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_25p_rate);
-                    completionObject.calculation_queue.push(...age_25p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_25_54_rate);
-                    completionObject.calculation_queue.push(...age_25_54_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else if ((age_15p_rate != "" && age_15_24_rate != "" && age_25_54_rate)
-                && (age_15p_pop_CO.calculable && age_15_24_pop_CO.calculable && age_55p_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(age_15p_rate);
-                    completionObject.calculation_queue.push(...age_15p_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(age_15_24_rate);
-                    completionObject.calculation_queue.push(...age_15_24_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-                    completionObject.calculation_queue.push(age_25_54_rate);
-                    completionObject.calculation_queue.push(...age_25_54_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            } else {
-                return completionObject;
-            }
-            break;
-    }
-
-    // determines if you can calculate the population of the demographic
-    if (populationCompletion.calculable) {
-        completionObject.calculable = true;
-        completionObject.calculation_queue.push(...populationCompletion.calculation_queue)
-        completionObject.calculation_queue.push("division");
-    }
-
-    return completionObject;
-}
-
-
-
-// determines if education population is calculateable given all other vector parameters in indigenousVectors hierarchy fixed
-// above ages in the completion function hierarchy
-// input is education (string) and other neccessary identifiers specified to specify place in indigenousVectors
-// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
-const completeMissingEducationPopulation = (geography, identity, gender, education, age) => {
-    let completionObject = {
-        calculable: false,
-        calculation_queue: []
-    };
-
-    let totalEducation_CO = completeMissingAgePopulation(geography, identity, gender, "total-education", age);
-    let underHighSchool_CO = completeMissingAgePopulation(geography, identity, gender, "less-than-high-school", age);
-    let somePostSec_CO = completeMissingAgePopulation(geography, identity, gender, "high-school-or-some-postsecondary", age);
-    let donePostSec_CO = completeMissingAgePopulation(geography, identity, gender, "completed-postsecondary", age);
-
-
-    switch (education) {
-        case "total-education":
-        default:
-            if (totalEducation_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalEducation_CO.calculation_queue);
-            } else if (underHighSchool_CO.calculable && somePostSec_CO.calculable && donePostSec_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
-                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
-                completionObject.calculation_queue.push("addition");
-                completionObject.calculation_queue.push(...donePostSec_CO.calculation_queue);
-                completionObject.calculation_queue.push("addition");
-            }
-            break;
-        case "less-than-high-school":
-            if (underHighSchool_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
-            } else if (totalEducation_CO.calculable && somePostSec_CO.calculable && donePostSec_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalEducation_CO.calculation_queue);
-                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-                completionObject.calculation_queue.push(...donePostSec_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-        case "high-school-or-some-postsecondary":
-            if (somePostSec_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
-            } else if (totalEducation_CO.calculable && underHighSchool_CO.calculable && donePostSec_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalEducation_CO.calculation_queue);
-                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-                completionObject.calculation_queue.push(...donePostSec_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-        case "completed-postsecondary":
-            if (donePostSec_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalEducation_CO.calculation_queue);
-            } else if (totalEducation_CO.calculable && underHighSchool_CO.calculable && somePostSec_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalEducation_CO.calculation_queue);
-                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-    }
-
-    return completionObject;
-}
-
-
-
-// determines if education rate is calculateable given all other vector parameters in indigenousVectors hierarchy fixed
-// above ages in the completion function hierarchy
-// input is education (string) and other neccessary identifiers specified to specify place in indigenousVectors
-// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
-const completeMissingEducationRate = (geography, identity, characteristic, gender, education, age) => {
-    let completionObject = {
-        calculable: false,
-        calculation_queue: []
-    };
-
-    let target = indigenousVectors[geography][identity][characteristic][gender][education][age];
-    if (target != "") {
-        completionObject.calculable = true;
-        completionObject.calculation_queue.push(target);
-        return completionObject;
-    }
-
-    let populationCompletion = completeMissingEducationPopulation(geography, identity, gender, education, age)
-
-    // target == "" ensures that calculable isnt false if you have the rate
-    if (!populationCompletion.calculable && target == "") return completionObject;
-    if (characteristic == "population") return populationCompletion;
-
-    let totalEducation_rate_CO = completeMissingAgeRate(geography, identity, characteristic, gender, "total-education", age);
-    let totalEducation_pop_CO = completeMissingEducationPopulation(geography, identity, gender, "total-education", age);
-
-    let underHighSchool_rate_CO = completeMissingAgeRate(geography, identity, characteristic, gender, "less-than-high-school", age);
-    let underHighSchool_pop_CO = completeMissingEducationPopulation(geography, identity, gender, "less-than-high-school", age);
-
-    let somePostSec_rate_CO = completeMissingAgeRate(geography, identity, characteristic, gender, "high-school-or-some-postsecondary", age);
-    let somePostSec_pop_CO = completeMissingEducationPopulation(geography, identity, gender, "high-school-or-some-postsecondary", age);
-
-    let donePostSec_rate_CO = completeMissingAgeRate(geography, identity, characteristic, gender, "completed-postsecondary", age);
-    let donePostSec_pop_CO = completeMissingEducationPopulation(geography, identity, gender, "completed-postsecondary", age);
-
-
-    switch (education) {
-        case "total-education":
-        default:
-            if (totalEducation_rate_CO.calculable) {
-
-                    completionObject.calculation_queue.push(...totalEducation_rate_CO.calculation_queue);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((underHighSchool_rate_CO.calculable && somePostSec_rate_CO.calculable && donePostSec_rate_CO.calculable)
-                && (underHighSchool_pop_CO.calculable && somePostSec_pop_CO.calculable && donePostSec_pop_CO.calculable)) {
-
-                completionObject.calculation_queue.push(...underHighSchool_rate_CO.calculation_queue);
-                completionObject.calculation_queue.push(...underHighSchool_pop_CO.calculation_queue);
-                completionObject.calculation_queue.push("multiplication")
-
-                completionObject.calculation_queue.push(...somePostSec_rate_CO.calculation_queue);
-                completionObject.calculation_queue.push(...somePostSec_pop_CO.calculation_queue);
-                completionObject.calculation_queue.push("multiplication")
-
-                completionObject.calculation_queue.push("addition");
-
-                completionObject.calculation_queue.push(...donePostSec_rate_CO.calculation_queue);
-                completionObject.calculation_queue.push(...donePostSec_pop_CO.calculation_queue);
-                completionObject.calculation_queue.push("multiplication")
-
-                completionObject.calculation_queue.push("addition");
-
-            }
-            break;
-
-
-        case "less-than-high-school":
-            if (underHighSchool_rate_CO.calculable) {
-
-                    completionObject.calculation_queue.push(...underHighSchool_rate_CO.calculation_queue);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((totalEducation_rate_CO.calculable && somePostSec_rate_CO.calculable && donePostSec_rate_CO.calculable)
-                && (totalEducation_pop_CO.calculable && somePostSec_pop_CO.calculable && donePostSec_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(...totalEducation_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...totalEducation_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push(...somePostSec_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...somePostSec_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push("addition");
-
-                    completionObject.calculation_queue.push(...donePostSec_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...donePostSec_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push("addition");
-
-            }
-            break;
-
-
-        case "high-school-or-some-postsecondary":
-            if (somePostSec_rate_CO.calculable) {
-
-                    completionObject.calculation_queue.push(...somePostSec_rate_CO.calculation_queue);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((totalEducation_rate_CO.calculable && underHighSchool_rate_CO.calculable && donePostSec_rate_CO.calculable)
-                && (totalEducation_pop_CO.calculable && underHighSchool_pop_CO.calculable && donePostSec_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(...totalEducation_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...totalEducation_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push(...underHighSchool_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...underHighSchool_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push("addition");
-
-                    completionObject.calculation_queue.push(...donePostSec_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...donePostSec_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push("addition");
-
-            }
-            break;
-
-
-        case "completed-postsecondary":
-            if (donePostSec_rate_CO.calculable) {
-
-                    completionObject.calculation_queue.push(...donePostSec_rate_CO.calculation_queue);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((totalEducation_rate_CO.calculable && underHighSchool_rate_CO.calculable && somePostSec_rate_CO.calculable)
-                && (totalEducation_pop_CO.calculable && underHighSchool_pop_CO.calculable && somePostSec_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(...totalEducation_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...totalEducation_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push(...underHighSchool_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...underHighSchool_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push("addition");
-
-                    completionObject.calculation_queue.push(...somePostSec_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...somePostSec_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication")
-
-                    completionObject.calculation_queue.push("addition");
-
-            }
-            break;
-    }
-
-    // determines if you can calculate the population of the demographic
-    if (populationCompletion.calculable) {
-        completionObject.calculable = true;
-        completionObject.calculation_queue.push(...populationCompletion.calculation_queue)
-        completionObject.calculation_queue.push("division");
-    }
-
-    return completionObject;
-}
-
-
-
-// determines if gender population is calculateable given all other vector parameters in indigenousVectors hierarchy fixed
-// top of the completion function hierarchyh above education
-// input is gender (string) as either "15+", "15-24", "25+", "25-54", "55+" and other neccessary identifiers specified to specify place in indigenousVectors
-// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
-const completeMissingGenderPopulation = (geography, identity, gender, education, age) => {
-    let completionObject = {
-        calculable: false,
-        calculation_queue: []
-    };
-
-    let totalGender_CO = completeMissingEducationPopulation(geography, identity, "total-gender", education, age);
-    let male_CO = completeMissingEducationPopulation(geography, identity, "men", education, age);
-    let female_CO = completeMissingEducationPopulation(geography, identity, "women", education, age);
-
-
-    switch (gender) {
-        case "total-gender":
-        default:
-            if (totalGender_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalGender_CO.calculation_queue);
-            } else if (male_CO.calculable && female_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...underHighSchool_CO.calculation_queue);
-                completionObject.calculation_queue.push(...somePostSec_CO.calculation_queue);
-                completionObject.calculation_queue.push("addition");
-            }
-            break;
-        case "men":
-            if (male_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...male_CO.calculation_queue);
-            } else if (totalGender_CO.calculable && female_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalGender_CO.calculation_queue);
-                completionObject.calculation_queue.push(...female_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-        case "women":
-            if (female_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...female_CO.calculation_queue);
-            } else if (totalGender_CO.calculable && male_CO.calculable) {
-                completionObject.calculable = true;
-                completionObject.calculation_queue.push(...totalGender_CO.calculation_queue);
-                completionObject.calculation_queue.push(...male_CO.calculation_queue);
-                completionObject.calculation_queue.push("subtraction");
-            }
-            break;
-    }
-
-    return completionObject;
-}
-
-
-
-// determines if gender rate is calculateable given all other vector parameters in indigenousVectors hierarchy fixed
-// top of the completion function hierarchyh above education
-// input is gender (string) as either "15+", "15-24", "25+", "25-54", "55+" and other neccessary identifiers specified to specify place in indigenousVectors
-// returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
-const completeMissingGenderRate = (geography, identity, characteristic, gender, education, age) => {
-    console.log(`completing: ${geography}_${identity}_${characteristic}_${gender}_${education}_${age}`)
-    let completionObject = {
-        calculable: false,
-        calculation_queue: []
-    };
-
-    let target = indigenousVectors[geography][identity][characteristic][gender][education][age];
-    if (target != "") {
-        completionObject.calculable = true;
-        completionObject.calculation_queue.push(target);
-        return completionObject;
-    }
-
-    let populationCompletion = completeMissingGenderPopulation(geography, identity, gender, education, age)
-
-    // target == "" ensures that calculable isnt false if you have the rate
-    if (!populationCompletion.calculable && target == "") return completionObject;
-    if (characteristic == "population") return populationCompletion;
-
-    let totalGender_rate_CO = completeMissingEducationRate(geography, identity, characteristic, "total-gender", education, age);
-    let totalGender_pop_CO = completeMissingEducationPopulation(geography, identity, "total-gender", education, age);
-
-    let male_rate_CO = completeMissingEducationRate(geography, identity, characteristic, "men", education, age);
-    let male_pop_CO = completeMissingEducationPopulation(geography, identity, "men", education, age);
-
-    let female_rate_CO = completeMissingEducationRate(geography, identity, characteristic, "women", education, age);
-    let female_pop_CO = completeMissingEducationPopulation(geography, identity, "women", education, age);
-
-
-    switch (gender) {
-        case "total-gender":
-        default:
-            if (totalGender_rate_CO.calculable) {
-
-                    completionObject.calculation_queue.push(...totalGender_rate_CO.calculation_queue);
-                    completionObject.calculable = true;
-                    console.log(completionObject.calculation_queue)
-                    return completionObject;
-
-            } else if ((male_rate_CO.calculable && female_rate_CO.calculable) 
-                && (male_pop_CO.calculable && female_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(...male_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...male_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(...female_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...female_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("addition");
-
-            }
-            break;
-
-
-        case "men":
-            if (male_rate_CO.calculable) {
-
-                    completionObject.calculation_queue.push(...male_rate_CO.calculation_queue);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((totalGender_rate_CO.calculable && female_rate_CO.calculable) 
-                && (totalGender_pop_CO.calculable && female_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(...totalGender_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...totalGender_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(...female_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...female_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            }
-            break;
-
-            
-        case "women":
-            if (female_rate_CO.calculable) {
-
-                    completionObject.calculation_queue.push(...female_rate_CO.calculation_queue);
-                    completionObject.calculable = true;
-                    return completionObject;
-
-            } else if ((totalGender_rate_CO.calculable && male_rate_CO.calculable) 
-                && (totalGender_pop_CO.calculable && male_pop_CO.calculable)) {
-
-                    completionObject.calculation_queue.push(...totalGender_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...totalGender_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push(...male_rate_CO.calculation_queue);
-                    completionObject.calculation_queue.push(...male_pop_CO.calculation_queue);
-                    completionObject.calculation_queue.push("multiplication");
-
-                    completionObject.calculation_queue.push("subtraction");
-
-            }
-            break;
-    }
-
-    // determines if you can calculate the population of the demographic
-    if (populationCompletion.calculable) {
-        completionObject.calculable = true;
-        completionObject.calculation_queue.push(...populationCompletion.calculation_queue)
-        completionObject.calculation_queue.push("division");
-    }
-
-    return completionObject;
-}
-
-
-
 //----------------------------------------------------------------------------------
 // SERVER SETUP
 //----------------------------------------------------------------------------------
+
 
 
 // http server
@@ -1227,7 +433,7 @@ app.get("/get-indigenous-trend", async (req, res) => {
 
     } else {
         // gender is top level of the hierarchy, so it will try completion for gender, education, and age (identity is not mutually exclusive)
-        let completionObject = completeMissingGenderRate(geography, identity, characteristic, gender, education, age);
+        let completionObject = completeMissingGenderRate(indigenousVectors[geography][identity], characteristic, gender, education, age);
 
         if (completionObject.calculable) {
             console.log(`completable ${identity}_${gender}_${education}_${age}`)
@@ -1250,6 +456,131 @@ app.get("/get-indigenous-trend", async (req, res) => {
                     trend_data: {
                         responseStatusCode: 404,
                         name: `${start}_${latest}_${geography}_${characteristic}_${identity}_${gender}_${education}_${age}`,
+                        time_series: {}
+                    },
+                    fetched: []
+                };
+                resolve();
+            });
+        }
+    }
+
+    // ERROR HERE
+    // lol u dont even need to to do this error check either since the status code is propagated to the frontend thru
+    // the responseStatusCode property
+
+    vector_cache_local.push(...trendObject.fetched);
+
+    let chartObject = {
+        "geography": geography,
+        "characteristic": characteristic,
+        "trends": [trendObject.trend_data]
+    }
+
+    for (index in vector_cache_local) {
+        delete vector_cache_global[vector_cache_local[index]];
+    }
+
+    res.send(chartObject);
+});
+
+
+
+/*
+QUERY PARAMS: 
+
+    geography (string):
+        desired geography, either any one of the provinces or Canada. defaults to Canada
+
+    characteristic (string):
+        string to denote whether to use employment, unemployment, or participation. defaults to employment
+
+    start (int): 
+        first period, inclusive, measured in number of periods away from present, defaults to 1
+
+    latest (int):
+        latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+
+    status (string):
+        array of statuses that specify whether the group are immigrants and how long ago they landed.
+        defaults to ["immigrants", "non-immigrants"]
+
+    gender (string):
+        true to compare genders, false to not compare genders. defaults to false
+
+    education (string):
+        true to include education attainment, false to not include education attainment. defaults to false
+
+    age (string):
+        array of age groups to include in the chart. defaults to ["15+"]
+
+RETURN
+
+    {
+        geography: <geogrraphical region requested by frontend>
+        characteristic: <labour characteristic requested by frontend>
+        trend: <{responseStatusCode: <status of request, whether vector data was retrieved>, name: <name of trend>, time_series: <vectorToTimeSeries output>)
+    }
+
+*/
+app.get("/get-immigrant-trend", async (req, res) => {
+    // local cache to only store vector ids
+    // when /get-indigenous-chart is done, local cache is used to determine which arrays are destroyed in global cache
+    let vector_cache_local = [];
+
+    // chart has two axes: time and characteristic, so following values only have one string val. 
+    // chart only displays data for one geographic region
+    let geography = req.query.geography || "can";
+    let characteristic = req.query.characteristic || "employment-rate";
+
+    // chart consists of any number of trends, so following values can have any number of string values
+    let status = req.query.status || "immigrant";
+    let origin = req.query.origin || "anywhere"
+    let gender = req.query.gender || "total-gender";
+    let education = req.query.education || "total-education";
+    let age = req.query.age || "15+";
+    // correct for + symbol being lost in query params
+    if (age == '15 ') age = "15+";
+    else if (age == '55 ') age = "55+";
+    else if (age == '25 ') age = "25+";
+
+    let start = parseInt(req.query.start) || 1;
+    let latest = parseInt(req.query.latest) || 0;
+
+    let vectorId = immigrantVectors[geography][status][origin][characteristic][gender][education][age];
+    let trendObject = {};
+
+    if (vectorId != "") {
+        console.log(`present ${status}_${origin}_${gender}_${education}_${age}`)
+        trendObject = await fetch(
+            `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
+        ).then(res => res.json());
+
+    } else {
+        // gender is top level of the hierarchy, so it will try completion for gender, education, and age (identity is not mutually exclusive)
+        let completionObject = completeMissingGenderRate(immigrantVectors[geography][status][origin], characteristic, gender, education, age);
+
+        if (completionObject.calculable) {
+            console.log(`completable ${status}_${origin}_${gender}_${education}_${age}`)
+            let calculation_queue = completionObject.calculation_queue
+            trendObject = await fetch(
+                `${BACKEND_URL}/get-synthesis-trend?vectorName=${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ calculation_queue })
+                }
+            ).then(res => res.json());
+
+        } else {
+            // ERROR HERE
+            // return error object saying that there is no way to complete vector
+            // it needs to be a promise because the other ones are promises
+            console.log(`incompleteable ${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}`)
+            await new Promise(resolve => {
+                trendObject = {
+                    trend_data: {
+                        responseStatusCode: 404,
+                        name: `${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}`,
                         time_series: {}
                     },
                     fetched: []
