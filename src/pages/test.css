@@ -5,6 +5,14 @@ header {
   font-size: 35px;
 }
 
+p {
+  flex: 1;              /* take remaining space */
+  margin: 40px 20px 0 20px;
+  font-size: 20px;
+  line-height: 1.6;
+  color: black;
+}
+
 .button{
     background-color: blueviolet;
     padding: 30px;
@@ -22,7 +30,9 @@ header {
 nav {
   background-color: azure;
   padding: 30px;
-  display: inline-block;
+  width: 220px;         /* wider blue sidebar */
+  min-height: 100vh;    /* full page height */
+  font-size: 20px;      /* bigger text */
 }
 
 html {
@@ -33,3 +43,13 @@ html {
   display: block; /* Show this one by default */
 }
 
+.content {
+  display: flex;        /* side by side layout */
+  align-items: flex-start; /* align at top */
+}
+
+.map-container {
+  display: flex;
+  justify-content: center; /* centers horizontally */
+  margin: 20px 0;
+}

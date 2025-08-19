@@ -4,6 +4,7 @@ import { Line } from "react-chartjs-2";
 import { useState, useEffect } from "react";
 import { nameToIdentifier, identifierToName } from '../helpers';
 import Canada from "@react-map/canada";
+import "./test.css"
 
 
 Chart.register(CategoryScale);
@@ -293,7 +294,9 @@ export function Indigenous() {
     return (
         <div className="chart-container">
             <h2 style={{ textAlign: "center" }}>Select Geographic Region</h2>
-            <Canada onSelect={handleMapSelect} size={900} hoverColor="orange" type="select-single"/>
+            <div className="map-container">
+                <Canada onSelect={handleMapSelect} size={900} hoverColor="orange" type="select-single"/>
+            </div>
             <button onClick={handleResetMap}>Canada</button>
 
             <h2 style={{ textAlign: "center" }}>Indigenous Trends</h2>
