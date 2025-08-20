@@ -12,6 +12,8 @@ export function AnalysisIndex() {
                     <li><Link to="/"> Go back home </Link></li>
                     <li><Link to="./indigenous"> Indigenous Analysis </Link></li>
                     <li><Link to="./immigrants"> Immigrants Analysis </Link></li>
+                    <li><Link to="./women">      Women Analysis      </Link></li>
+                    <li><Link to="./disability"> Disability Analysis </Link></li>
                 </ul>
             </nav>
         </div>

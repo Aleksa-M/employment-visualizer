@@ -11,7 +11,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || `http://localhost:${BAC
 
 console.log(BACKEND_URL)
 
-export function Immigrants() {
+export function Disability() {
     // ------------------------------------------------------------------------------------
     // STATES
     // ------------------------------------------------------------------------------------
@@ -21,8 +21,7 @@ export function Immigrants() {
     const [start, setStart] = useState(4);
     const [latest, setLatest] = useState(0);
 
-    const [statuses, setStatuses] = useState([]);
-    const [origins, setOrigins] = useState([]);
+    const [abilities, setIdentities] = useState([]);
     const [genders, setGenders] = useState([]);
     const [educations, setEducations] = useState([]);
     const [ages, setAges] = useState([]);
@@ -115,13 +114,9 @@ export function Immigrants() {
 
     const handleCheckBox = (e) => {
         switch (e.target.name) {
-            case "status":
-                if (e.target.checked) setStatuses(prev => [...prev, e.target.value]);
-                else setStatuses(prev => prev.filter(item => item != e.target.value));
-                break;
-            case "origin":
-                if (e.target.checked) setOrigins(prev => [...prev, e.target.value]);
-                else setOrigins(prev => prev.filter(item => item != e.target.value));
+            case "ability":
+                if (e.target.checked) setAbilities(prev => [...prev, e.target.value]);
+                else setIdentities(prev => prev.filter(item => item != e.target.value));
                 break;
             case "gender":
                 if (e.target.checked) setGenders(prev => [...prev, e.target.value]);
@@ -165,24 +160,22 @@ export function Immigrants() {
         let nextRendered = [];
 
         await Promise.all(
-        statuses.map(status =>
-        Promise.all(
-        origins.map(origin => 
+        abilities.map(ability =>
         Promise.all(
         genders.map(gender =>
         Promise.all(
         educations.map(education =>
         Promise.all(
         ages.map(async age => {
-            let name = `${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}`
+            let name = `${start}_${latest}_${geography}_${characteristic}_${ability}_${gender}_${education}_${age}`
 
             if (!rendered.includes(name)) {
-                let query = `geography=${geography}&characteristic=${characteristic}&status=${status}&origin=${origin}&gender=${gender}&education=${education}&age=${age}&start=${start}&latest=${latest}`
+                let query = `geography=${geography}&characteristic=${characteristic}&identity=${ability}&gender=${gender}&education=${education}&age=${age}&start=${start}&latest=${latest}`
 
                 let header = {
                     "Content-Type": "application/json"
                 };
-                let response = await fetch(`${BACKEND_URL}/get-immigrant-trend?${query}`, {
+                let response = await fetch(`${BACKEND_URL}/get-indigenous-trend?${query}`, {
                     headers: header
                 }).then(res => res.json())
                 .catch((error) => {
@@ -227,7 +220,7 @@ export function Immigrants() {
                 nextRendered.push(name)
             }
 
-        }))))))))));
+        }))))))));
 
         let yText = "";
 
@@ -275,12 +268,8 @@ export function Immigrants() {
     // ------------------------------------------------------------------------------------
 
     useEffect(() => {
-        console.log(statuses)
-    }, [statuses])
-
-    useEffect(() => {
-        console.log(origins)
-    }, [origins])
+        console.log(abilities)
+    }, [abilities])
 
     useEffect(() => {
         console.log(genders)
@@ -313,7 +302,7 @@ export function Immigrants() {
             <Canada onSelect={handleMapSelect} size={900} hoverColor="orange" type="select-single"/>
             <button onClick={handleResetMap}>Canada</button>
 
-            <h2 style={{ textAlign: "center" }}>Immigrant Trends</h2>
+            <h2 style={{ textAlign: "center" }}>Disability Trends</h2>
             <Line
                 data={chartTrends}
                 options={chartOptions}
@@ -337,21 +326,10 @@ export function Immigrants() {
                     <option value="unemployment-rate">Unemployment rate</option>
                 </select>
 
-                <h3>Immigrant Status</h3>
-                <input type="checkbox" name="status" value="immigrants" onChange={handleCheckBox}/> All Immigrants <br></br>
-                <input type="checkbox" name="status" value="non-immigrants" onChange={handleCheckBox}/> Non-Immigrants <br></br>
-                <input type="checkbox" name="status" value="landed-5yrs" onChange={handleCheckBox}/> Immigrants who landed less than 5 years before present year <br></br>
-                <input type="checkbox" name="status" value="landed-5-10yrs" onChange={handleCheckBox}/> Immigrants who landed between 5 and 10 years before present <br></br>
-                <input type="checkbox" name="status" value="landed-10-yrs" onChange={handleCheckBox}/> Immigrants who landed longer than 10 years before present <br></br>
-                <input type="checkbox" name="status" value="total-everyone" onChange={handleCheckBox}/> Total Population <br></br>
-
-                <h3>Place of Origin</h3>
-                <input type="checkbox" name="origin" value="anywhere" onChange={handleCheckBox}/> All Immigrants <br></br>
-                <input type="checkbox" name="origin" value="canadian-born" onChange={handleCheckBox}/> Born in Canada <br></br>
-                <input type="checkbox" name="origin" value="north-america" onChange={handleCheckBox}/> Born in North America <br></br>
-                <input type="checkbox" name="origin" value="latin-america" onChange={handleCheckBox}/> Born in Latin America <br></br>
-                <input type="checkbox" name="origin" value="europe" onChange={handleCheckBox}/> Born in Europe <br></br>
-                <input type="checkbox" name="origin" value="africa" onChange={handleCheckBox}/> Born in Africa <br></br>
+                <h3>Ability</h3>
+                <input type="checkbox" name="abled" value="disabled" onChange={handleCheckBox}/> All Abilities <br></br>
+                <input type="checkbox" name="abled" value="disabled" onChange={handleCheckBox}/> Persons with disabilities <br></br>
+                <input type="checkbox" name="abled" value="disabled" onChange={handleCheckBox}/> Persons without disabilities <br></br>
 
                 <h3>Gender</h3>
                 <input type="checkbox" name="gender" value="total-gender" onChange={handleCheckBox}/> All-genders <br></br>
@@ -373,37 +351,13 @@ export function Immigrants() {
 
                 <h3>Start Year</h3>
                 <select name="start" onChange={handleDropdown}>
-                    <option value="2010">2010</option>
-                    <option value="2011">2011</option>
-                    <option value="2012">2012</option>
-                    <option value="2013">2013</option>
-                    <option value="2014">2014</option>
-                    <option value="2015">2015</option>
-                    <option value="2016">2016</option>
-                    <option value="2017">2017</option>
-                    <option value="2018">2018</option>
-                    <option value="2019">2019</option>
-                    <option value="2020" selected="selected">2020</option>
-                    <option value="2021">2021</option>
-                    <option value="2022">2022</option>
+                    <option value="2022" selected="selected">2022</option>
                     <option value="2023">2023</option>
                     <option value="2024">2024</option>
                 </select>
 
                 <h3>End Year</h3>
                 <select name="latest" onChange={handleDropdown}>
-                    <option value="2010">2010</option>
-                    <option value="2011">2011</option>
-                    <option value="2012">2012</option>
-                    <option value="2013">2013</option>
-                    <option value="2014">2014</option>
-                    <option value="2015">2015</option>
-                    <option value="2016">2016</option>
-                    <option value="2017">2017</option>
-                    <option value="2018">2018</option>
-                    <option value="2019">2019</option>
-                    <option value="2020">2020</option>
-                    <option value="2021">2021</option>
                     <option value="2022">2022</option>
                     <option value="2023">2023</option>
                     <option value="2024" selected="selected">2024</option>

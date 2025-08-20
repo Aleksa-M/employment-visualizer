@@ -309,7 +309,7 @@ export function Indigenous() {
             />
 
             <div>
-                <h2>Unavailable</h2>
+                <h2>Unavailable Trends</h2>
                 <ul>
                     {
                         unavailable.map(item => (
@@ -336,8 +336,8 @@ export function Indigenous() {
 
                 <h3>Gender</h3>
                 <input type="checkbox" name="gender" value="total-gender" onChange={handleCheckBox}/> All-genders <br></br>
-                <input type="checkbox" name="gender" value="men" onChange={handleCheckBox}/> men <br></br>
-                <input type="checkbox" name="gender" value="women" onChange={handleCheckBox}/> women <br></br>
+                <input type="checkbox" name="gender" value="men" onChange={handleCheckBox}/> men+ <br></br>
+                <input type="checkbox" name="gender" value="women" onChange={handleCheckBox}/> women+ <br></br>
 
                 <h3>Education</h3>
                 <input type="checkbox" name="education" value="total-education" onChange={handleCheckBox}/> All education levels <br></br>

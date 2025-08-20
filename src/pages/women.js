@@ -11,18 +11,17 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || `http://localhost:${BAC
 
 console.log(BACKEND_URL)
 
-export function Immigrants() {
+export function Women() {
     // ------------------------------------------------------------------------------------
     // STATES
     // ------------------------------------------------------------------------------------
     const [geography, setGeography] = useState("can");
-    const [characteristic, setCharacteristic] = useState("employment-rate");
+    const [characteristic, setCharacteristic] = useState("avg-hourly-rate");
 
     const [start, setStart] = useState(4);
     const [latest, setLatest] = useState(0);
 
-    const [statuses, setStatuses] = useState([]);
-    const [origins, setOrigins] = useState([]);
+    const [employmentTypes, setEmploymentTypes] = useState([]);
     const [genders, setGenders] = useState([]);
     const [educations, setEducations] = useState([]);
     const [ages, setAges] = useState([]);
@@ -115,13 +114,9 @@ export function Immigrants() {
 
     const handleCheckBox = (e) => {
         switch (e.target.name) {
-            case "status":
-                if (e.target.checked) setStatuses(prev => [...prev, e.target.value]);
-                else setStatuses(prev => prev.filter(item => item != e.target.value));
-                break;
-            case "origin":
-                if (e.target.checked) setOrigins(prev => [...prev, e.target.value]);
-                else setOrigins(prev => prev.filter(item => item != e.target.value));
+            case "employment-type":
+                if (e.target.checked) setEmploymentTypes(prev => [...prev, e.target.value]);
+                else setEmploymentTypes(prev => prev.filter(item => item != e.target.value));
                 break;
             case "gender":
                 if (e.target.checked) setGenders(prev => [...prev, e.target.value]);
@@ -143,10 +138,10 @@ export function Immigrants() {
     const handleDropdown = (e) => {
         switch (e.target.name) {
             case "start":
-                setStart(2024 - parseInt(e.target.value) + 1);
+                setStart(2022 - parseInt(e.target.value) + 1);
                 break;
             case "latest":
-                setLatest(2024 - parseInt(e.target.value));
+                setLatest(2022 - parseInt(e.target.value));
                 break;
             case "characteristic":
                 setCharacteristic(e.target.value);
@@ -165,24 +160,22 @@ export function Immigrants() {
         let nextRendered = [];
 
         await Promise.all(
-        statuses.map(status =>
-        Promise.all(
-        origins.map(origin => 
+        employmentTypes.map(employmentType =>
         Promise.all(
         genders.map(gender =>
         Promise.all(
         educations.map(education =>
         Promise.all(
         ages.map(async age => {
-            let name = `${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}`
+            let name = `${start}_${latest}_${geography}_${characteristic}_${employmentType}_${gender}_${education}_${age}`
 
             if (!rendered.includes(name)) {
-                let query = `geography=${geography}&characteristic=${characteristic}&status=${status}&origin=${origin}&gender=${gender}&education=${education}&age=${age}&start=${start}&latest=${latest}`
+                let query = `geography=${geography}&characteristic=${characteristic}&employmentType=${employmentType}&gender=${gender}&education=${education}&age=${age}&start=${start}&latest=${latest}`
 
                 let header = {
                     "Content-Type": "application/json"
                 };
-                let response = await fetch(`${BACKEND_URL}/get-immigrant-trend?${query}`, {
+                let response = await fetch(`${BACKEND_URL}/get-women-trend?${query}`, {
                     headers: header
                 }).then(res => res.json())
                 .catch((error) => {
@@ -227,7 +220,7 @@ export function Immigrants() {
                 nextRendered.push(name)
             }
 
-        }))))))))));
+        }))))))));
 
         let yText = "";
 
@@ -235,14 +228,29 @@ export function Immigrants() {
             case "population":
                 yText = "Population (1000 persons)";
                 break;
-            case "employment-rate":
-                yText = "Employment rate (% of respective demographic)";
+            case "avg-hourly-rate":
+                yText = "Average hourly wage ($)";
                 break;
-            case "participation-rate":
-                yText = "Participation rate (% of respective demographic)";
+            case "avg-weekly-rate":
+                yText = "Average weekly wage ($)";
                 break;
-            case "unemployment-rate":
-                yText = "Unemployment rate (% of respective demographic)";
+            case "med-hourly-rate":
+                yText = "Median hourly wage ($)";
+                break;
+            case "med-weekly-rate":
+                yText = "Median weekly wage ($)";
+                break;
+            case "avg-hourly-ratio":
+                yText = "Average hourly wage ratio ($/$)";
+                break;
+            case "avg-weekly-ratio":
+                yText = "Average weekly wage ratio ($/$)";
+                break;
+            case "med-hourly-ratio":
+                yText = "Median hourly wage ratio ($/$)";
+                break;
+            case "med-weekly-ratio":
+                yText = "Median weekly wage ratio ($/$)";
                 break;
             default:
                 yText = "N/A";
@@ -275,12 +283,8 @@ export function Immigrants() {
     // ------------------------------------------------------------------------------------
 
     useEffect(() => {
-        console.log(statuses)
-    }, [statuses])
-
-    useEffect(() => {
-        console.log(origins)
-    }, [origins])
+        console.log(employmentTypes)
+    }, [employmentTypes])
 
     useEffect(() => {
         console.log(genders)
@@ -313,7 +317,7 @@ export function Immigrants() {
             <Canada onSelect={handleMapSelect} size={900} hoverColor="orange" type="select-single"/>
             <button onClick={handleResetMap}>Canada</button>
 
-            <h2 style={{ textAlign: "center" }}>Immigrant Trends</h2>
+            <h2 style={{ textAlign: "center" }}>Women Trends</h2>
             <Line
                 data={chartTrends}
                 options={chartOptions}
@@ -332,26 +336,20 @@ export function Immigrants() {
                 <h3>Labour Characteristic</h3>
                 <select name="characteristic" onChange={handleDropdown}>
                     <option value="population">Population</option>
-                    <option value="employment-rate" selected="selected">Employment rate</option>
-                    <option value="participation-rate">Participation rate</option>
-                    <option value="unemployment-rate">Unemployment rate</option>
+                    <option value="avg-hourly-rate" selected="selected">Average Hourly Wage</option>
+                    <option value="avg-weekly-rate">Average Weekly Wage</option>
+                    <option value="med-hourly-rate">Median Hourly Wage</option>
+                    <option value="med-weekly-rate">Median Weekly Wage</option>
+                    <option value="avg-hourly-ratio">Average Hourly Ratio</option>
+                    <option value="avg-weekly-ratio">Average Weekly Ratio</option>
+                    <option value="med-hourly-ratio">Median Hourly Ratio</option>
+                    <option value="med-weekly-ratio">Median Weekly Ratio</option>
                 </select>
 
-                <h3>Immigrant Status</h3>
-                <input type="checkbox" name="status" value="immigrants" onChange={handleCheckBox}/> All Immigrants <br></br>
-                <input type="checkbox" name="status" value="non-immigrants" onChange={handleCheckBox}/> Non-Immigrants <br></br>
-                <input type="checkbox" name="status" value="landed-5yrs" onChange={handleCheckBox}/> Immigrants who landed less than 5 years before present year <br></br>
-                <input type="checkbox" name="status" value="landed-5-10yrs" onChange={handleCheckBox}/> Immigrants who landed between 5 and 10 years before present <br></br>
-                <input type="checkbox" name="status" value="landed-10-yrs" onChange={handleCheckBox}/> Immigrants who landed longer than 10 years before present <br></br>
-                <input type="checkbox" name="status" value="total-everyone" onChange={handleCheckBox}/> Total Population <br></br>
-
-                <h3>Place of Origin</h3>
-                <input type="checkbox" name="origin" value="anywhere" onChange={handleCheckBox}/> All Immigrants <br></br>
-                <input type="checkbox" name="origin" value="canadian-born" onChange={handleCheckBox}/> Born in Canada <br></br>
-                <input type="checkbox" name="origin" value="north-america" onChange={handleCheckBox}/> Born in North America <br></br>
-                <input type="checkbox" name="origin" value="latin-america" onChange={handleCheckBox}/> Born in Latin America <br></br>
-                <input type="checkbox" name="origin" value="europe" onChange={handleCheckBox}/> Born in Europe <br></br>
-                <input type="checkbox" name="origin" value="africa" onChange={handleCheckBox}/> Born in Africa <br></br>
+                <h3>Employment Type</h3>
+                <input type="checkbox" name="employment-type" value="full-time" onChange={handleCheckBox}/> Full Time <br></br>
+                <input type="checkbox" name="employment-type" value="part-time" onChange={handleCheckBox}/> Part Time <br></br>
+                <input type="checkbox" name="employment-type" value="both-time" onChange={handleCheckBox}/> All types <br></br>
 
                 <h3>Gender</h3>
                 <input type="checkbox" name="gender" value="total-gender" onChange={handleCheckBox}/> All-genders <br></br>
@@ -386,8 +384,6 @@ export function Immigrants() {
                     <option value="2020" selected="selected">2020</option>
                     <option value="2021">2021</option>
                     <option value="2022">2022</option>
-                    <option value="2023">2023</option>
-                    <option value="2024">2024</option>
                 </select>
 
                 <h3>End Year</h3>
@@ -404,9 +400,7 @@ export function Immigrants() {
                     <option value="2019">2019</option>
                     <option value="2020">2020</option>
                     <option value="2021">2021</option>
-                    <option value="2022">2022</option>
-                    <option value="2023">2023</option>
-                    <option value="2024" selected="selected">2024</option>
+                    <option value="2022" selected="selected">2022</option>
                 </select>
                 
             </div>

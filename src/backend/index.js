@@ -5,6 +5,7 @@ const express = require("express");
 const { json } = require("express");
 
 const { completeMissingGenderRate } = require('./helpers/completionFunctions');
+const { completeMissingEducationRatio } = require('./helpers/completionFunctions');
 
 /*
 vectors from statscan tables are manually entered so that retrival on backend is blind.
@@ -35,9 +36,33 @@ Immigrant tables used:
 pid=1410047201
 pid=1410008701 (completed filling)
 
+HIERARCHY OF women-vectors
+    1. geography
+    2. employment types (full/part time)
+    3. wage statistic (hourly wages, yearly wages, wage ratios, etc)
+    4. gender
+    5. education
+    6. age
+
+Women tables used:
+pid=1410034001
+
+HIERARCHY OF disability-vectors
+    1. geography
+    2. ability
+    3. labour characteristic
+    4. gender
+    5. education
+    6. age
+
+Disability tables used:
+pid=1410047701
+
 */
 const indigenousVectors = require('./vectors/indigenous-vectors.json');
 const immigrantVectors = require('./vectors/immigrant-vectors.json');
+const womenVectors = require('./vectors/women-vectors.json');
+const disabilityVectors = require('./vectors/disability-vectors.json');
 
 
 /*
@@ -505,6 +530,10 @@ QUERY PARAMS:
         array of statuses that specify whether the group are immigrants and how long ago they landed.
         defaults to ["immigrants", "non-immigrants"]
 
+    origin (string):
+        array of origins that specify what geographical region in the world the group was born in.
+        defaults to ["anywhere"]
+
     gender (string):
         true to compare genders, false to not compare genders. defaults to false
 
@@ -581,6 +610,267 @@ app.get("/get-immigrant-trend", async (req, res) => {
                     trend_data: {
                         responseStatusCode: 404,
                         name: `${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}`,
+                        time_series: {}
+                    },
+                    fetched: []
+                };
+                resolve();
+            });
+        }
+    }
+
+    // ERROR HERE
+    // lol u dont even need to to do this error check either since the status code is propagated to the frontend thru
+    // the responseStatusCode property
+
+    vector_cache_local.push(...trendObject.fetched);
+
+    let chartObject = {
+        "geography": geography,
+        "characteristic": characteristic,
+        "trends": [trendObject.trend_data]
+    }
+
+    for (index in vector_cache_local) {
+        delete vector_cache_global[vector_cache_local[index]];
+    }
+
+    res.send(chartObject);
+});
+
+
+
+/*
+QUERY PARAMS: 
+
+    geography (string):
+        desired geography, either any one of the provinces or Canada. defaults to Canada
+
+    characteristic (string):
+        string to denote whether to use employment, unemployment, or participation. defaults to employment
+
+    start (int): 
+        first period, inclusive, measured in number of periods away from present, defaults to 1
+
+    latest (int):
+        latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+
+    employmentType (string):
+        array of employment types to indicate whether full-time, part-time, or both.
+        defaults to ["both-time"]
+
+    gender (string):
+        true to compare genders, false to not compare genders. defaults to false
+
+    education (string):
+        true to include education attainment, false to not include education attainment. defaults to false
+
+    age (string):
+        array of age groups to include in the chart. defaults to ["15+"]
+
+RETURN
+
+    {
+        geography: <geogrraphical region requested by frontend>
+        characteristic: <labour characteristic requested by frontend>
+        trend: <{responseStatusCode: <status of request, whether vector data was retrieved>, name: <name of trend>, time_series: <vectorToTimeSeries output>)
+    }
+
+*/
+app.get("/get-women-trend", async (req, res) => {
+    // local cache to only store vector ids
+    // when /get-indigenous-chart is done, local cache is used to determine which arrays are destroyed in global cache
+    let vector_cache_local = [];
+
+    // chart has two axes: time and characteristic, so following values only have one string val. 
+    // chart only displays data for one geographic region
+    let geography = req.query.geography || "can";
+    let characteristic = req.query.characteristic || "avg-hourly-rate";
+
+    // chart consists of any number of trends, so following values can have any number of string values
+    let employmentType = req.query.employmentType || "both-time";
+    let gender = req.query.gender || "total-gender";
+    let education = req.query.education || "total-education";
+    let age = req.query.age || "15+";
+    // correct for + symbol being lost in query params
+    if (age == '15 ') age = "15+";
+    else if (age == '55 ') age = "55+";
+    else if (age == '25 ') age = "25+";
+
+    let start = parseInt(req.query.start) || 1;
+    let latest = parseInt(req.query.latest) || 0;
+
+    let vectorId = womenVectors[geography][employmentType][characteristic][gender][education][age];
+    let trendObject = {};
+
+    if (vectorId != "") {
+        console.log(`present ${employmentType}_${gender}_${education}_${age}`)
+        trendObject = await fetch(
+            `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${start}_${latest}_${geography}_${characteristic}_${employmentType}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
+        ).then(res => res.json());
+
+    } else {
+        // gender is top level of the hierarchy, so it will try completion for gender, education, and age (identity is not mutually exclusive)
+        let completionObject = {
+            calculable: false,
+            calculation_queue: []
+        };
+
+        // ratios are not calculated the same way rates are, so a different completion function is used
+        // highest completion level is education since only the women section contains the ratio quantity
+        if (characteristic != "population") completionObject = completeMissingEducationRatio(womenVectors[geography][employmentType], characteristic, education, age)
+        else completionObject = completeMissingGenderRate(womenVectors[geography][employmentType], characteristic, gender, education, age);
+
+        if (completionObject.calculable) {
+            console.log(`completable ${employmentType}_${gender}_${education}_${age}`)
+            let calculation_queue = completionObject.calculation_queue
+            trendObject = await fetch(
+                `${BACKEND_URL}/get-synthesis-trend?vectorName=${start}_${latest}_${geography}_${characteristic}_${employmentType}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ calculation_queue })
+                }
+            ).then(res => res.json());
+
+        } else {
+            // ERROR HERE
+            // return error object saying that there is no way to complete vector
+            // it needs to be a promise because the other ones are promises
+            console.log(`incompleteable ${start}_${latest}_${geography}_${characteristic}_${employmentType}_${gender}_${education}_${age}`)
+            await new Promise(resolve => {
+                trendObject = {
+                    trend_data: {
+                        responseStatusCode: 404,
+                        name: `${start}_${latest}_${geography}_${characteristic}_${employmentType}_${gender}_${education}_${age}`,
+                        time_series: {}
+                    },
+                    fetched: []
+                };
+                resolve();
+            });
+        }
+    }
+
+    // ERROR HERE
+    // lol u dont even need to to do this error check either since the status code is propagated to the frontend thru
+    // the responseStatusCode property
+
+    vector_cache_local.push(...trendObject.fetched);
+
+    let chartObject = {
+        "geography": geography,
+        "characteristic": characteristic,
+        "trends": [trendObject.trend_data]
+    }
+
+    for (index in vector_cache_local) {
+        delete vector_cache_global[vector_cache_local[index]];
+    }
+
+    res.send(chartObject);
+});
+
+
+
+/*
+QUERY PARAMS: 
+
+    geography (string):
+        desired geography, either any one of the provinces or Canada. defaults to Canada
+
+    characteristic (string):
+        string to denote whether to use employment, unemployment, or participation. defaults to employment
+
+    start (int): 
+        first period, inclusive, measured in number of periods away from present, defaults to 1
+
+    latest (int):
+        latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
+
+    ability (string):
+        array of whether the group is abled or disabled.
+        defaults to ["all-ability"]
+
+    gender (string):
+        true to compare genders, false to not compare genders. defaults to false
+
+    education (string):
+        true to include education attainment, false to not include education attainment. defaults to false
+
+    age (string):
+        array of age groups to include in the chart. defaults to ["15+"]
+
+RETURN
+
+    {
+        geography: <geogrraphical region requested by frontend>
+        characteristic: <labour characteristic requested by frontend>
+        trend: <{responseStatusCode: <status of request, whether vector data was retrieved>, name: <name of trend>, time_series: <vectorToTimeSeries output>)
+    }
+
+*/
+app.get("/get-disability-trend", async (req, res) => {
+    // local cache to only store vector ids
+    // when /get-indigenous-chart is done, local cache is used to determine which arrays are destroyed in global cache
+    let vector_cache_local = [];
+
+    // chart has two axes: time and characteristic, so following values only have one string val. 
+    // chart only displays data for one geographic region
+    let geography = req.query.geography || "can";
+    let characteristic = req.query.characteristic || "employment-rate";
+
+    // chart consists of any number of trends, so following values can have any number of string values
+    let ability = req.query.ability || "all-ability";
+    let gender = req.query.gender || "total-gender";
+    let education = req.query.education || "total-education";
+    let age = req.query.age || "15+";
+    // correct for + symbol being lost in query params
+    if (age == '15 ') age = "15+";
+    else if (age == '55 ') age = "55+";
+    else if (age == '25 ') age = "25+";
+
+    let start = parseInt(req.query.start) || 1;
+    let latest = parseInt(req.query.latest) || 0;
+
+    let vectorId = disabilityVectors[geography][ability][characteristic][gender][education][age];
+    let trendObject = {};
+
+    if (vectorId != "") {
+        console.log(`present ${ability}_${gender}_${education}_${age}`)
+        trendObject = await fetch(
+            `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${start}_${latest}_${geography}_${characteristic}_${ability}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
+        ).then(res => res.json());
+
+    } else {
+        // gender is top level of the hierarchy, so it will try completion for gender, education, and age (identity is not mutually exclusive)
+        let completionObject = {
+            calculable: false,
+            calculation_queue: []
+        };
+
+        completionObject = completeMissingGenderRate(disabilityVectors[geography][ability], characteristic, gender, education, age);
+
+        if (completionObject.calculable) {
+            console.log(`completable ${ability}_${gender}_${education}_${age}`)
+            let calculation_queue = completionObject.calculation_queue
+            trendObject = await fetch(
+                `${BACKEND_URL}/get-synthesis-trend?vectorName=${start}_${latest}_${geography}_${characteristic}_${ability}_${gender}_${education}_${age}&start=${start}&latest=${latest}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ calculation_queue })
+                }
+            ).then(res => res.json());
+
+        } else {
+            // ERROR HERE
+            // return error object saying that there is no way to complete vector
+            // it needs to be a promise because the other ones are promises
+            console.log(`incompleteable ${start}_${latest}_${geography}_${characteristic}_${ability}_${gender}_${education}_${age}`)
+            await new Promise(resolve => {
+                trendObject = {
+                    trend_data: {
+                        responseStatusCode: 404,
+                        name: `${start}_${latest}_${geography}_${characteristic}_${ability}_${gender}_${education}_${age}`,
                         time_series: {}
                     },
                     fetched: []
