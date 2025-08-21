@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom"
-import "./test.css"
+import "./Analysis.css"
 
 export function PrimerTemp() {
     return (
     <div style={{ maxWidth: '800px', margin: '50px auto', padding: '20px' }}>
+      <li><Link to="/"> Go back home </Link></li>
       <h1>Introduction</h1>
       <p>
         	The Indigenous workforce is becoming an increasingly relevant demographic in the labour market that faces unique challenges, despite only making roughly 5% [1] of the Canadian population. The Indigenous population is made up from different tribes of people. The most populous and studied are the First Nations (58.0%), Metis (34.5%), and Inuit (3.9%) peoples, who tend to be centred in different geographic regions [10]. First Nations and Metis people tend to live in Western Canadian provinces, while Inuit people live in the broad geographic region Innuit Nunugat, which consists of the three territories, northern Quebec, and northern Labrador [3]. Additionally, they are likely to live in a remote or very remote region, with a third living on a reserve [3]. On average, they are a lot younger than their non-Indigenous counterparts and their population is increasing quicker than non-Indigenous Canadians [4], meaning that it is important to understand the challenges Indigenous people face as more of them replace the aging non-Indigenous population in the workplace [3]. 

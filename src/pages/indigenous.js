@@ -290,104 +290,95 @@ export function Indigenous() {
     // HTML
     // ------------------------------------------------------------------------------------
 
-    return (
+return (
         <div className="chart-container">
             <h2 style={{ textAlign: "center" }}>Select Geographic Region</h2>
             <div className="map-container">
-                <Canada onSelect={handleMapSelect} size={900} hoverColor="orange" type="select-single"/>
+                <Canada onSelect={handleMapSelect} size={900} hoverColor="orange" type="select-single" />
             </div>
             <button onClick={handleResetMap}>Canada</button>
 
             <h2 style={{ textAlign: "center" }}>Indigenous Trends</h2>
-            <Line
-                data={chartTrends}
-                options={chartOptions}
-            />
 
-            <div>
-                <h2>Unavailable</h2>
-                <ul>
-                    {
-                        unavailable.map(item => (
-                            <li key={item}> {item} </li>
-                        ))
-                    }
-                </ul>
+            {/* FLEX CONTAINER — FILTERS on LEFT, CHART on RIGHT */}
+            <div className="chart-filter-wrapper">
+                {/* FILTER BOX */}
+                <div className="filter-box">
+                    <h2>Unavailable</h2>
+                    <ul>
+                        {
+                            unavailable.map(item => (
+                                <li key={item}> {item} </li>
+                            ))
+                        }
+                    </ul>
 
-                <h3>Labour Characteristic</h3>
-                <select name="characteristic" onChange={handleDropdown}>
-                    <option value="population">Population</option>
-                    <option value="employment-rate" selected="selected">Employment rate</option>
-                    <option value="participation-rate">Participation rate</option>
-                    <option value="unemployment-rate">Unemployment rate</option>
-                </select>
+                    <h3>Labour Characteristic</h3>
+                    <select name="characteristic" onChange={handleDropdown}>
+                        <option value="population">Population</option>
+                        <option value="employment-rate" selected="selected">Employment rate</option>
+                        <option value="participation-rate">Participation rate</option>
+                        <option value="unemployment-rate">Unemployment rate</option>
+                    </select>
 
-                <h3>Indigenous Identity</h3>
-                <input type="checkbox" name="identity" value="indigenous" onChange={handleCheckBox}/> All Indigenous Groups <br></br>
-                <input type="checkbox" name="identity" value="non-indigenous" onChange={handleCheckBox}/> Non-Indigenous <br></br>
-                <input type="checkbox" name="identity" value="first-nations" onChange={handleCheckBox}/> First Nations <br></br>
-                <input type="checkbox" name="identity" value="metis" onChange={handleCheckBox}/> Metis <br></br>
-                <input type="checkbox" name="identity" value="inuit" onChange={handleCheckBox}/> Inuit <br></br>
-                <input type="checkbox" name="identity" value="total-everyone" onChange={handleCheckBox}/> Total population <br></br>
+                    <h3>Indigenous Identity</h3>
+                    <input type="checkbox" name="identity" value="indigenous" onChange={handleCheckBox}/> All Indigenous Groups <br />
+                    <input type="checkbox" name="identity" value="non-indigenous" onChange={handleCheckBox}/> Non-Indigenous <br />
+                    <input type="checkbox" name="identity" value="first-nations" onChange={handleCheckBox}/> First Nations <br />
+                    <input type="checkbox" name="identity" value="metis" onChange={handleCheckBox}/> Metis <br />
+                    <input type="checkbox" name="identity" value="inuit" onChange={handleCheckBox}/> Inuit <br />
+                    <input type="checkbox" name="identity" value="total-everyone" onChange={handleCheckBox}/> Total population <br />
 
-                <h3>Gender</h3>
-                <input type="checkbox" name="gender" value="total-gender" onChange={handleCheckBox}/> All-genders <br></br>
-                <input type="checkbox" name="gender" value="men" onChange={handleCheckBox}/> men <br></br>
-                <input type="checkbox" name="gender" value="women" onChange={handleCheckBox}/> women <br></br>
+                    <h3>Gender</h3>
+                    <input type="checkbox" name="gender" value="total-gender" onChange={handleCheckBox}/> All-genders <br />
+                    <input type="checkbox" name="gender" value="men" onChange={handleCheckBox}/> men <br />
+                    <input type="checkbox" name="gender" value="women" onChange={handleCheckBox}/> women <br />
 
-                <h3>Education</h3>
-                <input type="checkbox" name="education" value="total-education" onChange={handleCheckBox}/> All education levels <br></br>
-                <input type="checkbox" name="education" value="less-than-high-school" onChange={handleCheckBox}/> Less than high school <br></br>
-                <input type="checkbox" name="education" value="high-school-or-some-postsecondary" onChange={handleCheckBox}/> High school or some post-secondary <br></br>
-                <input type="checkbox" name="education" value="completed-postsecondary" onChange={handleCheckBox}/> Completed post secondary <br></br>
+                    <h3>Education</h3>
+                    <input type="checkbox" name="education" value="total-education" onChange={handleCheckBox}/> All education levels <br />
+                    <input type="checkbox" name="education" value="less-than-high-school" onChange={handleCheckBox}/> Less than high school <br />
+                    <input type="checkbox" name="education" value="high-school-or-some-postsecondary" onChange={handleCheckBox}/> High school or some post-secondary <br />
+                    <input type="checkbox" name="education" value="completed-postsecondary" onChange={handleCheckBox}/> Completed post secondary <br />
 
-                <h3>Age Ranges</h3>
-                <input type="checkbox" name="age" value="15+" onChange={handleCheckBox}/> 15+ <br></br>
-                <input type="checkbox" name="age" value="15-24" onChange={handleCheckBox}/> 15-24  <br></br>
-                <input type="checkbox" name="age" value="25+" onChange={handleCheckBox}/> 25+ <br></br>
-                <input type="checkbox" name="age" value="25-54" onChange={handleCheckBox}/> 25-54 <br></br>
-                <input type="checkbox" name="age" value="55+" onChange={handleCheckBox}/> 55+ <br></br>
+                    <h3>Age Ranges</h3>
+                    <input type="checkbox" name="age" value="15+" onChange={handleCheckBox}/> 15+ <br />
+                    <input type="checkbox" name="age" value="15-24" onChange={handleCheckBox}/> 15-24 <br />
+                    <input type="checkbox" name="age" value="25+" onChange={handleCheckBox}/> 25+ <br />
+                    <input type="checkbox" name="age" value="25-54" onChange={handleCheckBox}/> 25-54 <br />
+                    <input type="checkbox" name="age" value="55+" onChange={handleCheckBox}/> 55+ <br />
 
-                <h3>Start Year</h3>
-                <select name="start" onChange={handleDropdown}>
-                    <option value="2010">2010</option>
-                    <option value="2011">2011</option>
-                    <option value="2012">2012</option>
-                    <option value="2013">2013</option>
-                    <option value="2014">2014</option>
-                    <option value="2015">2015</option>
-                    <option value="2016">2016</option>
-                    <option value="2017">2017</option>
-                    <option value="2018">2018</option>
-                    <option value="2019">2019</option>
-                    <option value="2020" selected="selected">2020</option>
-                    <option value="2021">2021</option>
-                    <option value="2022">2022</option>
-                    <option value="2023">2023</option>
-                    <option value="2024">2024</option>
-                </select>
+                    <h3>Start Year</h3>
+                    <select name="start" onChange={handleDropdown}>
+                        {[...Array(15)].map((_, i) => {
+                            const year = 2010 + i;
+                            return (
+                                <option key={year} value={year} selected={year === 2020}>
+                                    {year}
+                                </option>
+                            );
+                        })}
+                    </select>
 
-                <h3>End Year</h3>
-                <select name="latest" onChange={handleDropdown}>
-                    <option value="2010">2010</option>
-                    <option value="2011">2011</option>
-                    <option value="2012">2012</option>
-                    <option value="2013">2013</option>
-                    <option value="2014">2014</option>
-                    <option value="2015">2015</option>
-                    <option value="2016">2016</option>
-                    <option value="2017">2017</option>
-                    <option value="2018">2018</option>
-                    <option value="2019">2019</option>
-                    <option value="2020">2020</option>
-                    <option value="2021">2021</option>
-                    <option value="2022">2022</option>
-                    <option value="2023">2023</option>
-                    <option value="2024" selected="selected">2024</option>
-                </select>
-                
+                    <h3>End Year</h3>
+                    <select name="latest" onChange={handleDropdown}>
+                        {[...Array(15)].map((_, i) => {
+                            const year = 2010 + i;
+                            return (
+                                <option key={year} value={year} selected={year === 2024}>
+                                    {year}
+                                </option>
+                            );
+                        })}
+                    </select>
+
+                    <button onClick={fetchChart}>fetch chart</button>
+                </div>
+
+                {/* CHART BOX */}
+                <div className="chart-box">
+                    <Line data={chartTrends} options={chartOptions} />
+                </div>
             </div>
-            <button onClick={fetchChart}>fetch chart</button>
         </div>
     );
 }
