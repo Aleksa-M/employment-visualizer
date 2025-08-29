@@ -710,7 +710,7 @@ const completeMissingEducationRate = (root, characteristic, gender, education, a
 // top of the completion function hierarchyh above education
 // input is gender (string) as either "15+", "15-24", "25+", "25-54", "55+" and other neccessary identifiers specified to specify place in indigenousVectors
 // returns json with calculable (boolean), and calculation_queue (array), which stores calculation in reverse polish notation
-const completeMissingGenderRate = (root, geography, identity, characteristic, gender, education, age) => {
+const completeMissingGenderRate = (root, characteristic, gender, education, age) => {
     console.log(`completing: ${characteristic}_${gender}_${education}_${age}`)
     let completionObject = {
         calculable: false,
@@ -996,7 +996,7 @@ const completeMissingAgeRatio = (root, characteristic, education, age) => {
 
 
 
-export const completeMissingEducationRatio = (root, characteristic, education, age) => {
+const completeMissingEducationRatio = (root, characteristic, education, age) => {
     // TODO
     let completionObject = {
         calculable: false,
@@ -1132,3 +1132,7 @@ export const completeMissingEducationRatio = (root, characteristic, education, a
     return completionObject;
 }
 
+module.exports = {
+    completeMissingGenderRate,
+    completeMissingEducationRatio
+}

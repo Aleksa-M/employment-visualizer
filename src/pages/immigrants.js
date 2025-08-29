@@ -268,6 +268,8 @@ export function Immigrants() {
         }));
         setUnavailable(nextUnavailable);
         setRendered(nextRendered);
+
+        console.log("finished fetch");
     }
 
     // ------------------------------------------------------------------------------------
@@ -412,5 +414,6 @@ export function Immigrants() {
             </div>
             <button onClick={fetchChart}>fetch chart</button>
         </div>
+        
     );
 }

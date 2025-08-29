@@ -21,7 +21,7 @@ export function Disability() {
     const [start, setStart] = useState(4);
     const [latest, setLatest] = useState(0);
 
-    const [abilities, setIdentities] = useState([]);
+    const [abilities, setAbilities] = useState([]);
     const [genders, setGenders] = useState([]);
     const [educations, setEducations] = useState([]);
     const [ages, setAges] = useState([]);
@@ -116,7 +116,7 @@ export function Disability() {
         switch (e.target.name) {
             case "ability":
                 if (e.target.checked) setAbilities(prev => [...prev, e.target.value]);
-                else setIdentities(prev => prev.filter(item => item != e.target.value));
+                else setAbilities(prev => prev.filter(item => item != e.target.value));
                 break;
             case "gender":
                 if (e.target.checked) setGenders(prev => [...prev, e.target.value]);

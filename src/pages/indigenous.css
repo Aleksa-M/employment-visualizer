@@ -1,0 +1,370 @@
+/* Main container layout */
+.chart-container {
+    display: flex;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #2d3748;
+    position: relative;
+}
+
+/* Main content area */
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    margin: 1rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    transition: margin-right 0.3s ease;
+}
+
+/* Add a wrapper for the map and controls layout */
+.map-controls-wrapper {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    max-width: 70%;
+}
+/* Style for the map section */
+.map-section {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-right: 1rem;
+}
+
+/* Controls section */
+.controls-section {
+    flex: 1;
+    background: rgba(247, 250, 252, 0.8);
+    padding: 1.25rem;
+    border-radius: 15px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(226, 232, 240, 0.5);
+    max-height: 600px;
+    overflow-y: auto;
+    min-width: 46%;
+    max-width: 70%;
+}
+
+/* Chart canvas container */
+.chart-wrapper {
+    background: white;
+    padding: 1rem 3rem 2rem; /* Reduced top padding */
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin: 1rem 0; /* Reduced vertical margin */
+    border: 1px solid rgba(226, 232, 240, 0.5);
+    width: 70%;
+    margin-left: auto;
+    margin-right: auto;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Chart title styling */
+.chart-wrapper h2 {
+    margin: 0 0 0.5rem 0; /* Reduced margin below title */
+    padding: 0;
+    font-size: 1.5rem;
+}
+
+/* Adjust form controls for better spacing */
+.controls-section h3 {
+    font-size: 1.1rem;
+    margin: 1rem 0 0.5rem 0;
+}
+
+/* Chart canvas container */
+.chart-wrapper > div {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    margin-top: 0; /* Remove top margin */
+}
+
+/* Make select dropdowns more compact */
+select {
+    width: 180px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 2px solid #cbd5e0;
+    border-radius: 12px;
+    background: white;
+    color: #2d3748;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+select:focus {
+    outline: none;
+    border-color: #4facfe;
+    box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Sidebar for Indigenous Primer */
+.indigenous-sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 320px;
+    height: 100vh;
+    background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
+    padding: 2rem;
+    overflow-y: auto;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
+    border-radius: 20px 0 0 20px;
+    z-index: 1000;
+}
+
+.sidebar-resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    height: 100vh;
+    cursor: col-resize;
+    border-radius: 4px 0 0 4px;
+    transition: background-color 0.2s ease;
+    z-index: 1010;
+    touch-action: none;
+    pointer-events: auto;
+}
+
+.sidebar-resize-handle:hover {
+    background: rgba(255, 255, 255, 0.5) !important;
+}
+
+.sidebar-resize-handle::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 30px;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.6) 2px,
+        rgba(255, 255, 255, 0.6) 4px
+    );
+    border-radius: 2px;
+    opacity: 1;  /* Ensure the grip is visible */
+}
+
+/* Added: Style for when sidebar is being resized */
+.indigenous-sidebar.resizing {
+    user-select: none;
+    cursor: col-resize;
+    transition: none;
+}
+
+.indigenous-sidebar.resizing .sidebar-resize-handle {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Rest of your existing styles remain the same */
+.indigenous-sidebar h2 {
+    color: white;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+
+/* Indigenous sidebar content headers */
+.indigenous-sidebar p {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.6;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+}
+
+/* Add specific styling for section headers in the sidebar */
+.indigenous-sidebar p > strong {
+    display: block;
+    color: #000000;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    text-decoration: underline; /* Add underline */
+    text-underline-offset: 5px; /* Add some space between text and underline */
+    padding-bottom: 2px; /* Add some padding below the text */
+}
+
+/* Headers */
+h2 {
+    color: #2d3748;
+    font-size: 1.8rem;
+    margin: 2rem 0 1rem 0;
+    text-align: center;
+    font-weight: 600;
+}
+
+h3 {
+    color: #4a5568;
+    font-size: 1.2rem;
+    margin: 1.5rem 0 0.75rem 0;
+    font-weight: 500;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+/* Form controls container */
+.controls-section {
+    background: rgba(247, 250, 252, 0.8);
+    padding: 2rem;
+    border-radius: 15px;
+    margin: 2rem 0;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+/* Select dropdowns */
+select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #cbd5e0;
+    border-radius: 12px;
+    background: white;
+    color: #2d3748;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+select:focus {
+    outline: none;
+    border-color: #4facfe;
+    box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    margin-right: 0.75rem;
+    transform: scale(1.2);
+    accent-color: #4facfe;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.checkbox-item:hover {
+    background-color: rgba(79, 172, 254, 0.1);
+}
+
+.checkbox-item label {
+    margin: 0;
+    cursor: pointer;
+    flex: 1;
+}
+
+/* Buttons */
+button {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    margin: 1rem 0.5rem;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Chart container */
+.chart-wrapper {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin: 2rem 0;
+    border: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+/* Unavailable trends list */
+.unavailable-section {
+    background: rgba(254, 178, 178, 0.1);
+    border: 1px solid rgba(252, 129, 129, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    max-width: 70%;
+}
+
+.unavailable-section h2 {
+    color: #c53030;
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+}
+
+.unavailable-section ul {
+    list-style: none;
+    padding: 0;
+}
+
+.unavailable-section li {
+    background: rgba(252, 129, 129, 0.1);
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
+    border-radius: 8px;
+    border-left: 4px solid #fc8181;
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        flex-direction: column;
+    }
+    
+    .main-content {
+        margin-right: 0 !important;
+        margin: 1rem;
+    }
+    
+    .indigenous-sidebar {
+        position: static;
+        width: auto !important;
+        height: auto;
+        border-radius: 20px;
+        margin: 1rem;
+    }
+
+    .sidebar-resize-handle {
+        display: none;
+    }
+}

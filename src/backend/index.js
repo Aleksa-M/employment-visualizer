@@ -100,6 +100,7 @@ const server = http.createServer();
 // input is vectorId (string), start (int), latest (int) as described in /get-vector
 // returns vector object with shaved vectorDataPoint
 const getVector = async (vectorId, start, latest) => {
+    console.log("god")
     const options = {
         method: 'POST',
         headers: {
@@ -107,8 +108,10 @@ const getVector = async (vectorId, start, latest) => {
         },
         body: JSON.stringify([{ vectorId: vectorId, latestN: start}])
     };
+    console.log(vectorId)
     const res = await fetch('https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorsAndLatestNPeriods', options)
     const response = await res.json();
+    console.log("bruh")
 
     // response is an array of responses, each being JSON with a status and object, and object is the actual vector
     // in the instance of a failure, the response will be:
@@ -197,6 +200,7 @@ QUERY PARARMS:
         latest period, inclusive, measured in number of periods away from present. if blank, defaults to 0
 */
 app.get("/get-vector", async (req, res) => {
+    console.log("my")
     const vectorId = req.query.vectorId;
     const latest = parseInt(req.query.latest) || 0;
     const start = parseInt(req.query.start) || 1;
@@ -585,6 +589,8 @@ app.get("/get-immigrant-trend", async (req, res) => {
             `${BACKEND_URL}/get-trend?vectorId=${vectorId}&vectorName=${start}_${latest}_${geography}_${characteristic}_${status}_${origin}_${gender}_${education}_${age}&start=${start}&latest=${latest}`
         ).then(res => res.json());
 
+        console.log("oh my god bruh")
+
     } else {
         // gender is top level of the hierarchy, so it will try completion for gender, education, and age (identity is not mutually exclusive)
         let completionObject = completeMissingGenderRate(immigrantVectors[geography][status][origin], characteristic, gender, education, age);
@@ -925,6 +931,7 @@ RETURN
 
 */
 app.get("/get-trend", async (req, res) => {
+    console.log("oh")
     const vectorId = req.query.vectorId;
     let vectorName = req.query.vectorName || "unnamed"
     const start = parseInt(req.query.start) || 1;
