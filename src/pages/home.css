@@ -1,0 +1,120 @@
+
+.nav-page {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.nav-page h2 {
+    color: #2d3748;
+    font-size: 2rem;
+    margin: 1rem 0;
+    text-align: center;
+    font-weight: 700;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.nav-content {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 2rem;
+    width: 100%;
+    margin-top: 1.5rem;
+}
+
+
+.card-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-wrapper h3 {
+    color: #2d3748;
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.card {
+    background: white;
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 1.25rem 1.5rem;
+    max-width: 340px;
+    width: 100%;
+    height: 500px;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(226, 232, 240, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.card nav {
+    background: white;
+}
+
+.card ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card li {
+    display: flex;
+    justify-content: center;
+    width: auto;
+}
+
+.card a {
+    display: inline-block;
+    text-decoration: none;
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+    min-width: 140px;
+}
+
+.card a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(79, 172, 254, 0.4);
+}
+
+.card a:active {
+    transform: translateY(0);
+}
+
+.logo {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+}
+
+.logo img {
+    width: 160px;
+    height: auto;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
